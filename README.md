@@ -6,6 +6,8 @@ A student-residence app by **Dynamic Developers** (INSY72315).
 
 **Open the app:** [https://reslink.onrender.com](https://reslink.onrender.com)
 
+**Open the website:** [file:///C:/Users/emeris/source/repos/reslink-infographic/reslink-infographic/docs/index.html]
+
 The first visit can take about a minute while the free host wakes up. Then sign in with one of the demo accounts:
 
 | Role | Email | Password |
