@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!--
+      Reference:
+      The Independent Institute of Education (IIE). 2025. The IIE Quick Reference Guide: IIE Harvard.
+      Sandton: The Independent Institute of Education.
+
+      Render. 2026. ResLink Web Application. [Online]. Available at:
+      <https://reslink.onrender.com> [Accessed 28 September 2026].
+    -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResLink | Find. Connect. Live.</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --primary-green: #15803D; /* Emerald Green */
+            --primary-green-light: #22C55E; /* Vibrant Mint */
+            --primary-green-dark: #14532D; /* Forest Green */
+            --bg-light: #F8FAF8; /* Off-white background */
+            --bg-card: #FFFFFF; /* Pure white card surface */
+            --text-main: #0F172A; /* Slate Dark */
+            --text-muted: #475569; /* Slate Muted */
+            --border-color: #E2E8F0; /* Crisp border */
+            --accent-soft: #DCFCE7; /* Soft green badge pill */
+            --radius-md: 14px;
+            --radius-lg: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* Header / Navigation */
+        .header {
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--primary-green-dark);
+            font-weight: 800;
+            font-size: 1.25rem;
+        }
+
+            .logo-box img {
+                max-height: 42px;
+                width: auto;
+                border-radius: 6px;
+                object-fit: contain;
+            }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.95rem;
+            padding: 0.65rem 1.4rem;
+            border-radius: 30px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-outline {
+            color: var(--primary-green);
+            border: 2px solid var(--primary-green);
+            background: transparent;
+        }
+
+            .btn-outline:hover {
+                background: var(--primary-green);
+                color: #FFFFFF;
+            }
+
+        .btn-primary {
+            background: var(--primary-green);
+            color: #FFFFFF;
+            border: 2px solid var(--primary-green);
+            box-shadow: 0 4px 14px rgba(21, 128, 61, 0.25);
+        }
+
+            .btn-primary:hover {
+                background: var(--primary-green-dark);
+                border-color: var(--primary-green-dark);
+                transform: translateY(-2px);
+            }
+
+        /* Hero Infographic Section */
+        .hero {
+            background: linear-gradient(180deg, #FFFFFF 0%, #F0FDF4 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 4.5rem 0 3.5rem;
+        }
+
+        .badge-pill {
+            background-color: var(--accent-soft);
+            color: var(--primary-green-dark);
+            padding: 0.35rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.4rem, 4vw, 3.5rem);
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .hero .tagline {
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            font-weight: 800;
+            color: var(--primary-green);
+            margin-bottom: 1.25rem;
+        }
+
+        .hero p.lead {
+            max-width: 680px;
+            margin: 0 auto 2rem;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Common Section Layout */
+        .section {
+            padding: 4.5rem 0;
+        }
+
+        .section-title {
+            color: var(--primary-green);
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.25rem;
+        }
+
+        .section-heading {
+            font-size: 2.1rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+        }
+
+        .section-desc {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+        }
+
+        /* Grid & Cards */
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+
+            .card:hover {
+                transform: translateY(-4px);
+                border-color: var(--primary-green-light);
+                box-shadow: 0 10px 20px -3px rgba(21, 128, 61, 0.12);
+            }
+
+        /* Audience Cards */
+        .icon-circle {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            background: var(--accent-soft);
+            color: var(--primary-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Pillar / Feature Cards */
+        .pillar-card {
+            border-top: 4px solid var(--primary-green);
+        }
+
+        .pillar-num {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: var(--primary-green);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Team Section */
+        .team-bg {
+            background: #FFFFFF;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .team-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .team-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            padding: 0.65rem 1.4rem;
+            border-radius: 40px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            background-color: var(--primary-green);
+            color: #FFFFFF;
+            font-weight: 700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+        }
+
+        .team-name {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Footer & References */
+        .footer {
+            background: #0F172A;
+            color: #E2E8F0;
+            padding: 3.5rem 0 2rem;
+        }
+
+            .footer h4 {
+                color: #FFFFFF;
+                font-size: 0.95rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 1rem;
+            }
+
+        .ref-list {
+            list-style: none;
+            font-size: 0.85rem;
+            color: #94A3B8;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .copyright {
+            border-top: 1px solid #334155;
+            padding-top: 1.5rem;
+            font-size: 0.85rem;
+            color: #64748B;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="container nav-container">
+            <a href="#" class="logo-box">
+                <!-- If reslink.jpeg is present, it renders here; otherwise it uses a clean fallback -->
+                <img src="reslink.jpeg" alt="ResLink Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block';">
+                <span id="logoFallback" style="display:none; color: var(--primary-green); font-weight:800;">ResLink</span>
+            </a>
+            <a href="https://reslink.onrender.com" target="_blank" rel="noopener noreferrer" class="btn btn-outline">
+                Live App <i data-lucide="external-link"></i>
+            </a>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero text-center">
+            <div class="container">
+                <span class="badge-pill">Overview & Infographic</span>
+                <h1>ResLink</h1>
+                <p class="tagline">“Find. Connect. Live.”</p>
+                <p class="lead">
+                    An intuitive student residence management and community platform bringing accommodation operations into a single connected experience.
+                </p>
+                <div>
+                    <a href="https://reslink.onrender.com" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                        Open https://reslink.onrender.com <i data-lucide="arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Audience: Who It Is For -->
+        <section class="section">
+            <div class="container text-center">
+                <div class="section-title">Stakeholder Ecosystem</div>
+                <h2 class="section-heading">Who It Is For</h2>
+                <p class="section-desc">Designed to support every key role within the student living environment.</p>
+
+                <div class="grid-4 text-center">
+                    <div class="card">
+                        <div class="icon-circle" style="margin: 0 auto 1.25rem;"><i data-lucide="graduation-cap"></i></div>
+                        <h3>Students</h3>
+                        <p>Stay updated with official residence announcements, RSVP to social events, and submit maintenance tickets directly from their phones.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="icon-circle" style="margin: 0 auto 1.25rem;"><i data-lucide="briefcase"></i></div>
+                        <h3>Admin</h3>
+                        <p>Streamline residence notices, manage check-in registers, coordinate room allocations, and broadcast alerts across halls.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="icon-circle" style="margin: 0 auto 1.25rem;"><i data-lucide="shield-check"></i></div>
+                        <h3>Security</h3>
+                        <p>Access immediate emergency communication protocols, log gate incidents, and verify authorized resident entries in real time.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="icon-circle" style="margin: 0 auto 1.25rem;"><i data-lucide="wrench"></i></div>
+                        <h3>Maintenance</h3>
+                        <p>Receive live task dispatches for plumbing, electrical, and room repairs with clear priority queues and resolution status updates.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Four Core Pillars -->
+        <section class="section" style="background: #F0FDF4; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+            <div class="container text-center">
+                <div class="section-title">Core Functions</div>
+                <h2 class="section-heading">Four Pillars of the Platform</h2>
+                <p class="section-desc">Key pillars that make residence living organized and connected.</p>
+
+                <div class="grid-4 text-center">
+                    <div class="card pillar-card">
+                        <div class="pillar-num">01</div>
+                        <h3>Community</h3>
+                        <p>Interactive noticeboards and social forums connecting residents across floors, encouraging peer support and camaraderie.</p>
+                    </div>
+
+                    <div class="card pillar-card">
+                        <div class="pillar-num">02</div>
+                        <h3>Events</h3>
+                        <p>Residence calendar featuring study groups, sporting tournaments, game nights, and official hall meetings with easy RSVPs.</p>
+                    </div>
+
+                    <div class="card pillar-card">
+                        <div class="pillar-num">03</div>
+                        <h3>Safety</h3>
+                        <p>One-touch emergency contacts, security check-ins, and rapid safety alerts ensuring peace of mind across the entire estate.</p>
+                    </div>
+
+                    <div class="card pillar-card">
+                        <div class="pillar-num">04</div>
+                        <h3>Maintenance</h3>
+                        <p>Transparent maintenance ticketing system allowing fast fault logging, photo attachments, and prompt resolution tracking.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Team Credits -->
+        <section class="section team-bg text-center">
+            <div class="container">
+                <div class="section-title">Project Contributors</div>
+                <h2 class="section-heading">Meet the Team</h2>
+                <p class="section-desc">Developed for the residence community by:</p>
+                <div class="team-container">
+                    <div class="team-pill">
+                        <div class="avatar">S</div>
+                        <span class="team-name">Sihle</span>
+                    </div>
+                    <div class="team-pill">
+                        <div class="avatar">T</div>
+                        <span class="team-name">Nomathamsanqa</span>
+                    </div>
+                    <div class="team-pill">
+                        <div class="avatar">B</div>
+                        <span class="team-name">Blessing</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- IIE Harvard References Footer -->
+    <footer class="footer">
+        <div class="container">
+            <h4>References </h4>
+            <ul class="ref-list">
+                <li>
+                    Render. 2026. <em>ResLink Web Application</em>. [Online]. Available at: &lt;https://reslink.onrender.com&gt; [Accessed 28 September 2026].
+                </li>
+                <li>
+                    The Independent Institute of Education (IIE). 2025. <em>The IIE Quick Reference Guide: IIE Harvard</em>. Sandton: The Independent Institute of Education.
+                </li>
+            </ul>
+            <div class="copyright">
+                &copy; 2026 ResLink Project. Designed by Sihle, Nomathamsanqa, and Blessing.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
