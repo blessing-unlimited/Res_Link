@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ResLink.Api.Auth;
@@ -60,7 +61,31 @@ if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(sqlitePath));
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    if (string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        options.UseSqlite(sqlitePath);
+        return;
+    }
+
+    var databaseUri = new Uri(databaseUrl);
+
+    var username = databaseUri.UserInfo.Split(':')[0];
+    var password = databaseUri.UserInfo.Split(':')[1];
+
+    var connectionString =
+        $"Host={databaseUri.Host};" +
+        $"Port={databaseUri.Port};" +
+        $"Database={databaseUri.AbsolutePath.Trim('/')};" +
+        $"Username={username};" +
+        $"Password={password};" +
+        "SSL Mode=Require;Trust Server Certificate=true;";
+
+    options.UseNpgsql(connectionString);
+});
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<JwtTokenService>();
@@ -95,12 +120,14 @@ builder.Services.AddCors(options =>
         policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 });
 
+builder.Services.AddSingleton<CloudinaryStorageService>();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
     await DbSeeder.SeedAsync(db);
 }
 
