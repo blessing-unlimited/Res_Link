@@ -1,9 +1,11 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using ResLink.Api.Auth;
 using ResLink.Api.Data;
 using ResLink.Api.Services;
@@ -71,20 +73,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         return;
     }
 
-    var databaseUri = new Uri(databaseUrl);
-
-    var username = databaseUri.UserInfo.Split(':')[0];
-    var password = databaseUri.UserInfo.Split(':')[1];
-
-    var connectionString =
-        $"Host={databaseUri.Host};" +
-        $"Port={databaseUri.Port};" +
-        $"Database={databaseUri.AbsolutePath.Trim('/')};" +
-        $"Username={username};" +
-        $"Password={password};" +
-        "SSL Mode=Require;Trust Server Certificate=true;";
-
-    options.UseNpgsql(connectionString);
+    options.UseNpgsql(ToNpgsqlConnectionString(databaseUrl));
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -127,7 +116,15 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    // The migrations target PostgreSQL; local SQLite files are disposable, so they are built from the model.
+    if (db.Database.IsNpgsql())
+    {
+        await db.Database.MigrateAsync();
+    }
+    else
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
     await DbSeeder.SeedAsync(db);
 }
 
@@ -158,5 +155,34 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Neon and Render hand out postgres:// URLs, which Npgsql does not accept directly.
+static string ToNpgsqlConnectionString(string url)
+{
+    if (!url.StartsWith("postgres://") && !url.StartsWith("postgresql://"))
+    {
+        return url;
+    }
+
+    var uri = new Uri(url);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var query = QueryHelpers.ParseQuery(uri.Query);
+    var sslMode = SslMode.Require;
+    if (query.TryGetValue("sslmode", out var mode)
+        && Enum.TryParse<SslMode>(mode.ToString().Replace("-", ""), ignoreCase: true, out var parsed))
+    {
+        sslMode = parsed;
+    }
+
+    return new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Database = uri.AbsolutePath.TrimStart('/'),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : null,
+        SslMode = sslMode
+    }.ConnectionString;
+}
 
 public partial class Program;
