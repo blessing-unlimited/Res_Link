@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1154940646",
+    "project_id": "reslink-3411f",
+    "storage_bucket": "reslink-3411f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1154940646:android:c777fbddf312d1e1c04527",
+        "android_client_info": {
+          "package_name": "com.dynamicdevelopers.reslink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7v_M6stk3S48ysPjLE6Ye_kCaRTLSsN0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
