@@ -49,6 +49,7 @@ import com.dynamicdevelopers.reslink.ui.theme.Forest
 import com.dynamicdevelopers.reslink.ui.theme.Ink
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import androidx.compose.ui.platform.LocalContext
 
 // The same logo file used on the web sign-in screen (Android Developers, 2025a).
 @Composable
@@ -73,6 +74,7 @@ fun LoginScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
         BrandLockup()
@@ -87,14 +89,28 @@ fun LoginScreen(
                 scope.launch {
                     loading = true
                     error = null
+
+                    var successRole: String? = null
+
                     try {
                         val auth = api.login(LoginRequest(email.trim(), password))
                         session.save(auth)
-                        onLoggedIn(auth.role)
+                        successRole = auth.role
+
+                        com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                val app = (context.applicationContext as? com.dynamicdevelopers.reslink.ResLinkApp)
+                                app?.uploadPushToken(task.result)
+                            }
+                        }
                     } catch (ex: Exception) {
                         error = userMessage(ex)
                     } finally {
                         loading = false
+                    }
+
+                    if (successRole != null) {
+                        onLoggedIn(successRole)
                     }
                 }
             }
@@ -108,7 +124,12 @@ fun LoginScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (String) -> Unit, onBack: () -> Unit) {
+fun StudentRegisterScreen(
+    api: ResLinkApi,
+    session: SessionStore,
+    onDone: (String) -> Unit,
+    onBack: () -> Unit
+) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -116,10 +137,11 @@ fun StudentRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (Strin
     var room by remember { mutableStateOf("") }
     var residences by remember { mutableStateOf(listOf<ResidenceDto>()) }
     var selected by remember { mutableStateOf<ResidenceDto?>(null) }
-    var expanded by remember { mutableStateOf(false) }
+    var residenceExpanded by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         residences = runCatching { api.residences() }.getOrDefault(emptyList())
@@ -130,7 +152,8 @@ fun StudentRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (Strin
         TextButton(onClick = onBack) { Text("Back", color = Forest) }
         BrandLockup()
         Text("Student sign-up", color = Ink, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Text("Residence, room and student number are required.", color = Muted, modifier = Modifier.padding(bottom = 16.dp))
+        Spacer(Modifier.height(16.dp))
+
         ResField(fullName, { fullName = it }, "Full name")
         Spacer(Modifier.height(10.dp))
         ResField(email, { email = it }, "Email")
@@ -140,22 +163,40 @@ fun StudentRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (Strin
         ResField(studentNumber, { studentNumber = it }, "Student number")
         Spacer(Modifier.height(10.dp))
         ResField(room, { room = it }, "Room")
+
         Spacer(Modifier.height(10.dp))
-        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        ExposedDropdownMenuBox(
+            expanded = residenceExpanded,
+            onExpandedChange = { residenceExpanded = it }
+        ) {
             OutlinedTextField(
                 value = selected?.name ?: "Select residence",
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Residence") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(residenceExpanded)
+                },
+                modifier = Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth()
             )
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                residences.forEach {
-                    DropdownMenuItem(text = { Text(it.name) }, onClick = { selected = it; expanded = false })
+            ExposedDropdownMenu(
+                expanded = residenceExpanded,
+                onDismissRequest = { residenceExpanded = false }
+            ) {
+                residences.forEach { residence ->
+                    DropdownMenuItem(
+                        text = { Text(residence.name) },
+                        onClick = {
+                            selected = residence
+                            residenceExpanded = false
+                        }
+                    )
                 }
             }
         }
+
         ErrorText(error)
         Spacer(Modifier.height(16.dp))
         ResButton("Create student account", loading) {
@@ -164,14 +205,31 @@ fun StudentRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (Strin
                 error = "Choose a residence."
                 return@ResButton
             }
+
             scope.launch {
                 loading = true
                 error = null
                 try {
                     val auth = api.registerStudent(
-                        StudentRegisterRequest(fullName, email, password, studentNumber, residence.id, room)
+                        StudentRegisterRequest(
+                            fullName,
+                            email,
+                            password,
+                            studentNumber,
+                            residence.id,
+                            room
+                        )
                     )
                     session.save(auth)
+
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance()
+                        .token.addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                val app = context.applicationContext as? com.dynamicdevelopers.reslink.ResLinkApp
+                                app?.uploadPushToken(task.result)
+                            }
+                        }
+
                     onDone(auth.role)
                 } catch (ex: Exception) {
                     error = userMessage(ex)
@@ -182,6 +240,7 @@ fun StudentRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (Strin
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,6 +259,8 @@ fun StaffRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (String)
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
 
     LaunchedEffect(Unit) {
         residences = runCatching { api.residences() }.getOrDefault(emptyList())
@@ -268,6 +329,14 @@ fun StaffRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (String)
                         StaffRegisterRequest(fullName, email, password, staffId, role, accessCode, residence.id)
                     )
                     session.save(auth)
+
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val app = (context.applicationContext as? com.dynamicdevelopers.reslink.ResLinkApp)
+                            app?.uploadPushToken(task.result)
+                        }
+                    }
+
                     onDone(auth.role)
                 } catch (ex: Exception) {
                     error = userMessage(ex)

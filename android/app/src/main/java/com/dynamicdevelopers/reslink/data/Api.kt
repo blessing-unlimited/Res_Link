@@ -34,6 +34,9 @@ interface ResLinkApi {
     @GET("api/auth/me")
     suspend fun me(): AuthResponse
 
+    @PUT("api/auth/push-token")
+    suspend fun updatePushToken(@Body body: UpdatePushTokenRequest): Response<Unit>
+
     @GET("api/dashboard")
     suspend fun dashboard(): DashboardDto
 

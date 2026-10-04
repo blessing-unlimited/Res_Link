@@ -232,3 +232,5 @@ data class DashboardDto(
     val highlights: List<String>,
     val analytics: AnalyticsDto?
 )
+
+data class UpdatePushTokenRequest(val token: String)
