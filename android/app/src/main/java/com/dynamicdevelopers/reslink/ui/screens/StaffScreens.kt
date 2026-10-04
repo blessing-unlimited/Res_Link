@@ -1,5 +1,7 @@
 package com.dynamicdevelopers.reslink.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dynamicdevelopers.reslink.data.EmergencyAlertDto
@@ -94,12 +97,32 @@ fun SecurityQueuesScreen(api: ResLinkApi) {
         }
         item { Text("Panic alerts", color = Ink, fontWeight = FontWeight.SemiBold) }
         items(alerts) { alert ->
+            val context = LocalContext.current
+
             ResCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(alert.reporterName, color = Ink, fontWeight = FontWeight.SemiBold)
                     StatusChip(alert.status)
                 }
                 Text(alert.location, color = Muted)
+                if (alert.latitude != null && alert.longitude != null) {
+                    Text(
+                        "GPS: ${alert.latitude}, ${alert.longitude}",
+                        color = Muted,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+
+                    TextButton(
+                        onClick = {
+                            val mapsUri = Uri.parse("https://www.google.com/maps?q=${alert.latitude},${alert.longitude}")
+                            val intent = Intent(Intent.ACTION_VIEW, mapsUri)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Text("Open in Maps", color = Forest)
+                    }
+                }
                 Text(alert.message, modifier = Modifier.padding(top = 8.dp))
                 Row {
                     listOf("Open", "Acknowledged", "Resolved", "Withdrawn").forEach { status ->

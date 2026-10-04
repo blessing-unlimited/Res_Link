@@ -105,35 +105,58 @@ public class SafetyController(
     [Authorize(Roles = $"{Roles.Security},{Roles.Admin}")]
     public async Task<ActionResult<IReadOnlyList<EmergencyAlertDto>>> Emergencies()
     {
-        var items = await db.EmergencyAlerts.Include(e => e.Reporter).OrderByDescending(e => e.CreatedAt).ToListAsync();
+        var items = await db.EmergencyAlerts
+            .Include(e => e.Reporter)
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync();
+
         return Ok(items.Select(e => new EmergencyAlertDto(
-            e.Id, e.Reporter?.FullName ?? "Student", e.Location, e.Message, e.Status, e.CreatedAt)).ToList());
+            e.Id,
+            e.Reporter?.FullName ?? "Student",
+            e.Location,
+            e.Message,
+            e.Status,
+            e.CreatedAt,
+            e.Latitude,
+            e.Longitude)).ToList());
     }
 
-    [HttpPost("api/emergencies")]
-    [Authorize(Roles = Roles.Student)]
-    public async Task<IActionResult> Panic(CreateEmergencyRequest request)
+[HttpPost("api/emergencies")]
+[Authorize(Roles = Roles.Student)]
+public async Task<IActionResult> Panic(CreateEmergencyRequest request)
+{
+    var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
+    var fallbackLocation = $"{user.Room ?? "Unknown room"}, {user.Residence?.Name ?? "Residence"}";
+
+    await db.Entry(user).Reference(u => u.Residence).LoadAsync();
+
+    var location = string.IsNullOrWhiteSpace(request.Location)
+        ? fallbackLocation
+        : request.Location.Trim();
+
+    db.EmergencyAlerts.Add(new EmergencyAlert
     {
-        var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
-        var location = string.IsNullOrWhiteSpace(request.Location)
-            ? $"{user.Room ?? "Unknown room"}, {user.Residence?.Name ?? "Residence"}"
-            : request.Location.Trim();
+        Id = Guid.NewGuid(),
+        ReporterId = user.Id,
+        ResidenceId = user.ResidenceId ?? Guid.Empty,
+        Location = location,
+        Message = string.IsNullOrWhiteSpace(request.Message) ? "Panic button activated" : request.Message.Trim(),
+        Latitude = request.Latitude,
+        Longitude = request.Longitude,
+        Status = "Open"
+    });
 
-        await db.Entry(user).Reference(u => u.Residence).LoadAsync();
-        db.EmergencyAlerts.Add(new EmergencyAlert
-        {
-            Id = Guid.NewGuid(),
-            ReporterId = user.Id,
-            ResidenceId = user.ResidenceId ?? Guid.Empty,
-            Location = location,
-            Message = string.IsNullOrWhiteSpace(request.Message) ? "Panic button activated" : request.Message.Trim(),
-            Status = "Open"
-        });
-        await db.SaveChangesAsync();
-        await notifications.NotifyRoleAsync(user.ResidenceId ?? Guid.Empty, Roles.Security, "Panic alert",
-            $"Open panic alert from {location}.", "Emergency");
-        return NoContent();
-    }
+    await db.SaveChangesAsync();
+
+    await notifications.NotifyRoleAsync(
+        user.ResidenceId ?? Guid.Empty,
+        Roles.Security,
+        "Panic alert",
+        $"Open panic alert from {location}.",
+        "Emergency");
+
+    return NoContent();
+}
 
     [HttpPut("api/emergencies/{id:guid}/status")]
     [Authorize(Roles = $"{Roles.Security},{Roles.Admin}")]
@@ -159,8 +182,16 @@ public class SafetyController(
             .Where(e => e.ReporterId == current.UserId)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync();
+
         return Ok(items.Select(e => new EmergencyAlertDto(
-            e.Id, e.Reporter?.FullName ?? "You", e.Location, e.Message, e.Status, e.CreatedAt)).ToList());
+            e.Id,
+            e.Reporter?.FullName ?? "You",
+            e.Location,
+            e.Message,
+            e.Status,
+            e.CreatedAt,
+            e.Latitude,
+            e.Longitude)).ToList());
     }
 
     // Marks a panic as a false alarm so security is not left chasing a live alert.

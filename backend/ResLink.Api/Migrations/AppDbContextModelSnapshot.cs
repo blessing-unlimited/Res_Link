@@ -147,9 +147,15 @@ namespace ResLink.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Message")
                         .IsRequired()

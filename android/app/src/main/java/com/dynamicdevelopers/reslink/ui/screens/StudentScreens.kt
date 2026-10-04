@@ -1,5 +1,9 @@
 package com.dynamicdevelopers.reslink.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,9 +28,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.dynamicdevelopers.reslink.data.CreateCommentRequest
 import com.dynamicdevelopers.reslink.data.CreateEmergencyRequest
 import com.dynamicdevelopers.reslink.data.CreateMaintenanceRequest
@@ -35,6 +41,7 @@ import com.dynamicdevelopers.reslink.data.CreateNoiseRequest
 import com.dynamicdevelopers.reslink.data.CreatePostRequest
 import com.dynamicdevelopers.reslink.data.CreateStudyGroupRequest
 import com.dynamicdevelopers.reslink.data.DashboardDto
+import com.dynamicdevelopers.reslink.data.EmergencyAlertDto
 import com.dynamicdevelopers.reslink.data.EventDto
 import com.dynamicdevelopers.reslink.data.MaintenanceTicketDto
 import com.dynamicdevelopers.reslink.data.MarketplaceItemDto
@@ -52,9 +59,10 @@ import com.dynamicdevelopers.reslink.ui.common.ResCard
 import com.dynamicdevelopers.reslink.ui.common.ResField
 import com.dynamicdevelopers.reslink.ui.common.ScreenHeader
 import com.dynamicdevelopers.reslink.ui.common.StatusChip
-import com.dynamicdevelopers.reslink.ui.theme.Muted
 import com.dynamicdevelopers.reslink.ui.theme.Forest
 import com.dynamicdevelopers.reslink.ui.theme.Ink
+import com.dynamicdevelopers.reslink.ui.theme.Muted
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
 
 @Composable
@@ -350,30 +358,111 @@ fun MaintenanceScreen(api: ResLinkApi, isStudent: Boolean, canUpdate: Boolean) {
 fun PanicScreen(api: ResLinkApi, session: SessionStore) {
     var sent by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var mine by remember { mutableStateOf(listOf<com.dynamicdevelopers.reslink.data.EmergencyAlertDto>()) }
+    var mine by remember { mutableStateOf(listOf<EmergencyAlertDto>()) }
     val scope = rememberCoroutineScope()
-    fun reload() = scope.launch { mine = runCatching { api.myEmergencies() }.getOrDefault(emptyList()) }
+    val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        if (!granted) {
+            error = "Location permission was denied. Room fallback will be used."
+            scope.launch {
+                api.panic(
+                    CreateEmergencyRequest(
+                        location = null,
+                        message = "Panic button activated"
+                    )
+                )
+                sent = true
+            }
+            return@rememberLauncherForActivityResult
+        }
+
+        val client = LocationServices.getFusedLocationProviderClient(context)
+        client.lastLocation.addOnSuccessListener { location ->
+            scope.launch {
+                try {
+                    api.panic(
+                        CreateEmergencyRequest(
+                            location = null,
+                            message = "Panic button activated",
+                            latitude = location?.latitude,
+                            longitude = location?.longitude
+                        )
+                    )
+                    sent = true
+                    mine = runCatching { api.myEmergencies() }.getOrDefault(emptyList())
+                } catch (ex: Exception) {
+                    error = userMessage(ex)
+                }
+            }
+        }
+    }
+
+    fun reload() = scope.launch {
+        mine = runCatching { api.myEmergencies() }.getOrDefault(emptyList())
+    }
+
     LaunchedEffect(Unit) { reload() }
-    LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+    LazyColumn(
+        Modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item {
             ScreenHeader("Emergency", "One tap alerts residence security")
             ResCard {
                 Text("Your location will be sent as ${session.room().ifBlank { "your room" }}, ${session.residenceName()}.")
                 Spacer(Modifier.height(16.dp))
+
                 ResButton(if (sent) "Alert sent" else "Hold to send panic alert") {
-                    scope.launch {
-                        try {
-                            api.panic(CreateEmergencyRequest(null, "Panic button activated"))
-                            sent = true
-                            reload()
-                        } catch (ex: Exception) {
-                            error = userMessage(ex)
+                    val hasLocationPermission = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED ||
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasLocationPermission) {
+                        val client = LocationServices.getFusedLocationProviderClient(context)
+                        client.lastLocation.addOnSuccessListener { location ->
+                            scope.launch {
+                                try {
+                                    api.panic(
+                                        CreateEmergencyRequest(
+                                            location = null,
+                                            message = "Panic button activated",
+                                            latitude = location?.latitude,
+                                            longitude = location?.longitude
+                                        )
+                                    )
+                                    sent = true
+                                    reload()
+                                } catch (ex: Exception) {
+                                    error = userMessage(ex)
+                                }
+                            }
                         }
+                    } else {
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
                     }
                 }
+
                 ErrorText(error)
             }
         }
+
         items(mine) { alert ->
             ResCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -381,7 +470,9 @@ fun PanicScreen(api: ResLinkApi, session: SessionStore) {
                     StatusChip(alert.status)
                 }
                 if (alert.status == "Open") {
-                    TextButton(onClick = { scope.launch { api.withdrawEmergency(alert.id); reload() } }) {
+                    TextButton(onClick = {
+                        scope.launch { api.withdrawEmergency(alert.id); reload() }
+                    }) {
                         Text("False alarm", color = Forest)
                     }
                 }

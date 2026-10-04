@@ -166,10 +166,17 @@ data class EmergencyAlertDto(
     val location: String,
     val message: String,
     val status: String,
-    val createdAt: String
+    val createdAt: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
-data class CreateEmergencyRequest(val location: String?, val message: String?)
+data class CreateEmergencyRequest(
+    val location: String?,
+    val message: String?,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
 
 data class StudyGroupDto(
     val id: String,
