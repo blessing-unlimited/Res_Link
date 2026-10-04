@@ -23,6 +23,8 @@ public class AppUser
     public int Points { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public string? PushToken { get; set; }
 }
 
 public class Post

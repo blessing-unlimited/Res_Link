@@ -147,4 +147,28 @@ public class AuthController(
 
         return Ok(DtoMapper.ToAuth(user, tokens.CreateToken(user)));
     }
+
+    [Authorize]
+    [HttpPut("push-token")]
+    public async Task<IActionResult> UpdatePushToken(
+    UpdatePushTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return BadRequest("A push token is required.");
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(
+            user => user.Id == currentUser.UserId);
+
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        user.PushToken = request.Token.Trim();
+        await db.SaveChangesAsync();
+
+        return NoContent();
+    }
 }

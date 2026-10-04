@@ -180,3 +180,5 @@ public record DashboardDto(
     AnalyticsDto? Analytics);
 
 public record UpdateActiveRequest(bool IsActive);
+
+public record UpdatePushTokenRequest(string Token);

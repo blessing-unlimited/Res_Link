@@ -6,10 +6,19 @@ using ResLink.Api.Domain;
 
 namespace ResLink.Api.Services;
 
-public class NotificationService(AppDbContext db)
+public class NotificationService(AppDbContext db,FirebasePushService push)
 {
-    public async Task NotifyAsync(Guid userId, string title, string body, string type)
+    public async Task NotifyAsync(
+        Guid userId,
+        string title,
+        string body,
+        string type)
     {
+        var pushToken = await db.Users
+            .Where(user => user.Id == userId)
+            .Select(user => user.PushToken)
+            .FirstOrDefaultAsync();
+
         db.Notifications.Add(new AppNotification
         {
             Id = Guid.NewGuid(),
@@ -18,22 +27,37 @@ public class NotificationService(AppDbContext db)
             Body = body,
             Type = type
         });
+
         await db.SaveChangesAsync();
+
+        await push.SendAsync([pushToken], title, body, type);
     }
 
-    public async Task NotifyRoleAsync(Guid residenceId, string role, string title, string body, string type)
+    public async Task NotifyRoleAsync(
+        Guid residenceId,
+        string role,
+        string title,
+        string body,
+        string type)
     {
-        var userIds = await db.Users
-            .Where(u => u.ResidenceId == residenceId && u.Role == role && u.IsActive)
-            .Select(u => u.Id)
+        var recipients = await db.Users
+            .Where(user =>
+                user.ResidenceId == residenceId &&
+                user.Role == role &&
+                user.IsActive)
+            .Select(user => new
+            {
+                user.Id,
+                user.PushToken
+            })
             .ToListAsync();
 
-        foreach (var userId in userIds)
+        foreach (var recipient in recipients)
         {
             db.Notifications.Add(new AppNotification
             {
                 Id = Guid.NewGuid(),
-                UserId = userId,
+                UserId = recipient.Id,
                 Title = title,
                 Body = body,
                 Type = type
@@ -41,6 +65,12 @@ public class NotificationService(AppDbContext db)
         }
 
         await db.SaveChangesAsync();
+
+        await push.SendAsync(
+            recipients.Select(recipient => recipient.PushToken),
+            title,
+            body,
+            type);
     }
 }
 

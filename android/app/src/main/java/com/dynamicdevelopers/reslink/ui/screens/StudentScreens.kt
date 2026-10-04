@@ -106,7 +106,6 @@ fun HomeScreen(api: ResLinkApi, session: SessionStore, role: String) {
         }
     }
 }
-
 @Composable
 fun FeedScreen(api: ResLinkApi, canPost: Boolean, canModerate: Boolean, userId: String = "") {
     var posts by remember { mutableStateOf(listOf<PostDto>()) }
@@ -138,7 +137,15 @@ fun FeedScreen(api: ResLinkApi, canPost: Boolean, canModerate: Boolean, userId: 
                     ResButton("Publish") {
                         scope.launch {
                             try {
-                                api.createPost(CreatePostRequest(title, body, isPoll, if (isPoll) options.split(",").map { it.trim() } else null))
+                                api.createPost(
+                                    CreatePostRequest(
+                                        title,
+                                        body,
+                                        null,
+                                        isPoll,
+                                        if (isPoll) options.split(",").map { it.trim() } else null
+                                    )
+                                )
                                 title = ""; body = ""; reload()
                             } catch (ex: Exception) { error = userMessage(ex) }
                         }
@@ -174,6 +181,7 @@ fun FeedScreen(api: ResLinkApi, canPost: Boolean, canModerate: Boolean, userId: 
         }
     }
 }
+
 
 @Composable
 fun EventsScreen(api: ResLinkApi, isStudent: Boolean, isAdmin: Boolean) {

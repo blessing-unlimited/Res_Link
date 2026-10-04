@@ -72,17 +72,31 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 
     var databaseUri = new Uri(databaseUrl);
+    var userInfo = databaseUri.UserInfo;
+    var separatorIndex = userInfo.IndexOf(':');
 
-    var username = databaseUri.UserInfo.Split(':')[0];
-    var password = databaseUri.UserInfo.Split(':')[1];
+    if (separatorIndex < 0)
+    {
+        throw new InvalidOperationException(
+            "DATABASE_URL must include a username and password.");
+    }
 
-    var connectionString =
-        $"Host={databaseUri.Host};" +
-        $"Port={databaseUri.Port};" +
-        $"Database={databaseUri.AbsolutePath.Trim('/')};" +
-        $"Username={username};" +
-        $"Password={password};" +
-        "SSL Mode=Require;Trust Server Certificate=true;";
+    var username = Uri.UnescapeDataString(userInfo[..separatorIndex]);
+    var password = Uri.UnescapeDataString(userInfo[(separatorIndex + 1)..]);
+    var databaseName = Uri.UnescapeDataString(
+        databaseUri.AbsolutePath.Trim('/'));
+    var databasePort = databaseUri.Port > 0 ? databaseUri.Port : 5432;
+
+    var connectionString = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = databaseUri.Host,
+        Port = databasePort,
+        Database = databaseName,
+        Username = username,
+        Password = password,
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    }.ConnectionString;
 
     options.UseNpgsql(connectionString);
 });
@@ -121,13 +135,28 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<CloudinaryStorageService>();
+builder.Services.AddSingleton<FirebasePushService>();
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+
+    var connection = db.Database.GetDbConnection();
+    app.Logger.LogInformation(
+        "Active database: provider={Provider}, host/dataSource={DataSource}, database={Database}",
+        db.Database.ProviderName,
+        connection.DataSource,
+        connection.Database);
+    if (string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    else
+    {
+        await db.Database.MigrateAsync();
+    }
     await DbSeeder.SeedAsync(db);
 }
 
