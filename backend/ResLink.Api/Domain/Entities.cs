@@ -152,6 +152,8 @@ public class EmergencyAlert
     public Guid ResidenceId { get; set; }
     public string Location { get; set; } = string.Empty;
     public string Message { get; set; } = "Panic button activated";
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public string Status { get; set; } = "Open";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

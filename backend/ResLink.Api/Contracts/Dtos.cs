@@ -133,9 +133,15 @@ public record EmergencyAlertDto(
     string Location,
     string Message,
     string Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    double? Latitude,
+    double? Longitude);
 
-public record CreateEmergencyRequest(string? Location, string? Message);
+public record CreateEmergencyRequest(
+    string? Location,
+    string? Message,
+    double? Latitude,
+    double? Longitude);
 
 public record StudyGroupDto(
     Guid Id,
