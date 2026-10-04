@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<AppNotification> Notifications => Set<AppNotification>();
     public DbSet<Visitor> Visitors => Set<Visitor>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,5 +75,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<MarketplaceItem>()
             .Property(i => i.Price)
             .HasPrecision(10, 2);
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

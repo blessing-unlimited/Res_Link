@@ -106,6 +106,7 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PointsService>();
+builder.Services.AddScoped<EmailService>();
 
 // Issuer, audience and signing-key checks match Microsoft's JWT bearer guidance (Microsoft, 2025b; OWASP, 2023).
 var jwt = builder.Configuration.GetSection("Jwt");

@@ -182,3 +182,7 @@ public record DashboardDto(
 public record UpdateActiveRequest(bool IsActive);
 
 public record UpdatePushTokenRequest(string Token);
+
+public record ForgotPasswordRequest(string Email);
+
+public record ResetPasswordRequest(string Token, string NewPassword);

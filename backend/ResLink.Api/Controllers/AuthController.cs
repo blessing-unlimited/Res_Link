@@ -7,6 +7,9 @@ using ResLink.Api.Contracts;
 using ResLink.Api.Data;
 using ResLink.Api.Domain;
 using ResLink.Api.Services;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace ResLink.Api.Controllers;
 
@@ -16,7 +19,8 @@ public class AuthController(
     AppDbContext db,
     JwtTokenService tokens,
     IConfiguration configuration,
-    CurrentUser currentUser) : ControllerBase
+    CurrentUser currentUser,
+    EmailService emailService) : ControllerBase
 {
     // Identity PasswordHasher stores a salted hash rather than the raw password (Microsoft, 2024; OWASP, 2023).
     private readonly PasswordHasher<AppUser> _hasher = new();
@@ -150,16 +154,14 @@ public class AuthController(
 
     [Authorize]
     [HttpPut("push-token")]
-    public async Task<IActionResult> UpdatePushToken(
-    UpdatePushTokenRequest request)
+    public async Task<IActionResult> UpdatePushToken(UpdatePushTokenRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Token))
         {
             return BadRequest("A push token is required.");
         }
 
-        var user = await db.Users.FirstOrDefaultAsync(
-            user => user.Id == currentUser.UserId);
+        var user = await db.Users.FirstOrDefaultAsync(user => user.Id == currentUser.UserId);
 
         if (user is null)
         {
@@ -170,5 +172,89 @@ public class AuthController(
         await db.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest("Email is required.");
+        }
+
+        var normalizedEmail = request.Email.Trim().ToLower();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        // Always return the same message for security.
+        if (user is null)
+        {
+            return Ok(new { message = "If an account exists for that email, a reset link has been sent." });
+        }
+
+        var rawToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) +
+                       "." +
+                       Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+
+        var existingTokens = db.PasswordResetTokens.Where(t => t.UserId == user.Id && t.UsedAt == null && t.ExpiresAt > DateTime.UtcNow);
+
+        db.PasswordResetTokens.RemoveRange(existingTokens);
+
+        db.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            TokenHash = tokenHash,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+        });
+
+        await db.SaveChangesAsync();
+
+        var baseUrl = configuration["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+        var resetLink = $"{baseUrl}/reset-password?token={encodedToken}";
+
+        await emailService.SendPasswordResetAsync(user.Email, resetLink);
+
+        return Ok(new { message = "If an account exists for that email, a reset link has been sent." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return BadRequest("A reset token is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        {
+            return BadRequest("Password must be at least 8 characters long.");
+        }
+
+        var tokenBytes = WebEncoders.Base64UrlDecode(request.Token);
+        var rawToken = Encoding.UTF8.GetString(tokenBytes);
+        var tokenHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+
+        var resetToken = await db.PasswordResetTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t =>
+                t.TokenHash == tokenHash &&
+                t.UsedAt == null &&
+                t.ExpiresAt > DateTime.UtcNow);
+
+        if (resetToken is null || resetToken.User is null)
+        {
+            return BadRequest("This reset link is invalid or has expired.");
+        }
+
+        resetToken.User.PasswordHash = _hasher.HashPassword(resetToken.User, request.NewPassword);
+        resetToken.UsedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Your password has been reset." });
     }
 }

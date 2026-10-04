@@ -341,6 +341,38 @@ namespace ResLink.Api.Migrations
                     b.ToTable("NoiseComplaints");
                 });
 
+            modelBuilder.Entity("ResLink.Api.Domain.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
+                });
+
             modelBuilder.Entity("ResLink.Api.Domain.PollVote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -715,6 +747,17 @@ namespace ResLink.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Seller");
+                });
+
+            modelBuilder.Entity("ResLink.Api.Domain.PasswordResetToken", b =>
+                {
+                    b.HasOne("ResLink.Api.Domain.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ResLink.Api.Domain.PollVote", b =>
