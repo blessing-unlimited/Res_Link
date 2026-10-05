@@ -428,6 +428,6 @@ fun userMessage(ex: Throwable): String {
             409 -> "That email is already registered."
             else -> "Request failed (${ex.code()})."
         }
-        else -> ex.message ?: "Could not reach the ResLink API. Is it running on port 5180?"
+        else -> ex.message ?: "Could not reach ResLink. Check your connection and try again."
     }
 }
