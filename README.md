@@ -8,7 +8,7 @@ A student-residence app by **Dynamic Developers** (INSY72315).
 
 **Project infographic:** [https://reslink-infographic-zkca.onrender.com](https://reslink-infographic-zkca.onrender.com)
 
-**Group presentation video:** [ResLink-Presentation.mp4 on the GitHub release](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video). It is about 40 minutes long: Thami starts at 0:03, Sihle at 5:28 and Blessing at 17:01. Download the file from the release page; it plays in any browser or media player.
+**Group presentation video:** [https://youtu.be/9U4fODAI4ws](https://youtu.be/9U4fODAI4ws) (about 40 minutes): Thami starts at [0:03](https://youtu.be/9U4fODAI4ws?t=3), Sihle at [5:28](https://youtu.be/9U4fODAI4ws?t=328) and Blessing at [17:01](https://youtu.be/9U4fODAI4ws?t=1021). It is also on the [infographic](https://reslink-infographic-zkca.onrender.com/#presentation), and the file can be downloaded from the [GitHub release](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video).
 
 The first visit can take about a minute while the free host wakes up. Then sign in with one of the demo accounts:
 
@@ -25,7 +25,7 @@ The same API and accounts work in a local browser or in Android Studio. The Andr
 
 ## What the lecturer can mark
 
-1. Watch the [group presentation video](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video).
+1. Watch the [group presentation video on YouTube](https://youtu.be/9U4fODAI4ws).
 2. Open [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com) or run the app locally (steps below).
 3. Sign in with each demo account and follow the walkthrough.
 4. Run `dotnet test ResLink.sln` from the repository root.
@@ -225,7 +225,7 @@ In the Meet the Team section, hovering over (or tabbing to) a name shows that me
 
 ### Group video
 
-- Recorded her part of the group video, explaining the work she contributed. Each member recorded their own part, and the parts were joined into one [presentation video](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video) with a ResLink intro and outro.
+- Recorded her part of the group video, explaining the work she contributed. Each member recorded their own part, and the parts were joined into one [presentation video](https://youtu.be/9U4fODAI4ws) with a ResLink intro and outro. She also published it on her YouTube channel.
 
 ## Blessing's work
 
