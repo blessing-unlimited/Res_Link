@@ -47,8 +47,8 @@ ResLink is built by **Dynamic Developers**.
 | Member | GitHub | Contribution |
 | --- | --- | --- |
 | Sihle | [@Sihl3s](https://github.com/Sihl3s) | The first working prototype, hosting and data (Docker, Render, Neon), the web and Android redesigns, password reset, bug fixes from group testing, the automated tests, hosting the infographic, and this run guide. See Sihle's work below. |
-| Thami (Nomathamsanqa) | [@NomathamsanqaTame](https://github.com/NomathamsanqaTame) | A screen recording of the app, and a separate website that presents the project as an infographic. See Thami's work below. |
-| Blessing | [@blessing-unlimited](https://github.com/blessing-unlimited) | Backend lead. The API, roles, and demo data are in this repository. The steps still required for a real residence are written out below as Blessing's work. |
+| Thami (Nomathamsanqa) | [@NomathamsanqaTame](https://github.com/NomathamsanqaTame) | Designed the ResLink logo, built the infographic website that presents the project, and recorded her part of the group video. See Thami's work below. |
+| Blessing | [@blessing-unlimited](https://github.com/blessing-unlimited) | Created the group repository and leads the backend. Built maintenance photo upload with Cloudinary, the PostgreSQL support the live app runs on, push notifications with Firebase, password reset requests, live location for panic alerts, and reward vouchers, and tested the app on Android. See Blessing's work below. |
 
 ## Prerequisites
 
@@ -143,6 +143,9 @@ The tests confirm:
 - password reset works without email, and an admin reset link can only be used once
 - cancelling an RSVP, leaving a study group, deleting a post, cancelling a maintenance ticket, or withdrawing a noise complaint takes back the points that action earned
 - a maintenance photo uploads without Cloudinary, can be viewed, and files that are not images are rejected
+- times on new items are sent in UTC, so a post made just now shows as "just now" in every time zone
+- a full study group cannot be joined, and a reward with no stock left cannot be redeemed
+- a panic alert sent without a location carries the student's room and residence name
 
 ## Points
 
@@ -157,20 +160,20 @@ Sihle built the first working version of ResLink, keeps it hosted, and fixed and
 - Published the first working prototype in August 2026: the ASP.NET Core API, the browser app, the Android app, the demo accounts and data, and the Render hosting files. Added the Harvard in-text comments and the reference list.
 - Brought the app onto this group repository and stopped browsers from keeping an old copy of the app after an update.
 - Wrote the `Dockerfile` and `render.yaml`, and set up the live Render service in Frankfurt.
-- Moved the live data to Neon PostgreSQL so it survives a restart, with migrations for PostgreSQL and SQLite kept for local runs and tests ([#2](https://github.com/blessing-unlimited/Res_Link/pull/2)). Checked that a post survives a redeploy.
+- Connected the live Render service to the Neon database through Blessing's PostgreSQL support, so live data survives a restart, and checked that a post survives a redeploy. An earlier version of the PostgreSQL work ([#2](https://github.com/blessing-unlimited/Res_Link/pull/2)) was closed because Blessing's version reached `main` first; its README steps and a UTC time fix were carried over.
 - Moved hosting to this repository when the old one was retired, and pointed the Android app at the live API so it works on any phone without running the API locally.
 
 ### Fixes
 
 - Sign-up: the residence list always loads and shows an error if it cannot, and the API refuses to start in production without a JWT key ([#8](https://github.com/blessing-unlimited/Res_Link/pull/8)).
-- Password reset: a "Forgot password?" page on the web and Android, an admin "Create reset link" button for when email is not set up, and reset links that use the live `https://` address.
-- Panic button: the web app sends the student's location, and the security desk shows a map link.
+- Password reset: built on Blessing's reset tokens and email service with a "Forgot password?" page on the web and Android, a page to set the new password, an admin "Create reset link" button for when email is not set up, and reset links that use the live `https://` address.
+- Panic button: brought Blessing's live location to the web, so the web app also sends the student's location and the web security desk shows a map link.
 - Rewards: removed the reward undo button, so a redeemed voucher can only be voided by an admin.
 - Admins can mark marketplace items as sold on the web, as the API already allowed.
 
 ### Redesign
 
-- Made sharp, tightly cropped logo files (icon, full logo and horizontal) for the web, Android and the infographic.
+- Cropped Thami's logo into sharp icon, full logo and horizontal files for the web, Android and the infographic.
 - Redesigned the web app around the logo colours ([#9](https://github.com/blessing-unlimited/Res_Link/pull/9)): a dark green sidebar, sign-in and sign-up tabs, pop-up messages, and layouts for phones, tablets and laptops.
 - Redesigned the Android app to match: the same theme and components, a brand header on sign-in, and a dark side rail on tablets.
 
@@ -186,156 +189,123 @@ Sihle built the first working version of ResLink, keeps it hosted, and fixed and
 - Android layout: the "Community" label in the bottom bar no longer wraps, and long titles or locations no longer squeeze status labels until their text stacks vertically. Staff status buttons wrap onto a new line on narrow phones.
 - Web layout: on phones the maintenance filter row no longer makes the whole page wider than the screen.
 
+### Later fixes
+
+- Android: the points on the Rewards and Profile screens refresh from the server, so points earned or taken back elsewhere show straight away instead of after signing in again.
+- Local runs: times read back from SQLite are marked as UTC, so something posted just now no longer shows as "2 h ago".
+- Study groups: a full group can no longer be joined, and the web and Android apps show "Group is full" instead of a Join button.
+- Rewards: a reward with no stock left can no longer be redeemed, and the apps show "Out of stock".
+- Panic button: an alert sent without the phone's location now names the student's residence instead of just "Residence".
+- Android: when the server turns a request down, the app shows the reason (for example "This study group is full.") instead of "Request failed (400)".
+
 ### Tests and documentation
 
-- Wrote the automated tests, now 14 of them (see Automated tests above).
+- Wrote the automated tests, now 18 of them (see Automated tests above).
 - Wrote and maintain this run guide, the hosting steps, and the demo walkthrough.
 
 ## Thami's work
 
-Thami records the app and publishes a separate infographic site. These two pieces are her deliverables.
+Thami designed the ResLink logo and built the project's infographic website.
 
-### 1. App recording
+### Logo
 
-1. Open [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com) and wait until the sign-in page loads.
-2. Record the full screen (Windows Game Bar with `Win + Alt + R`, or phone screen recording). Speak or add captions so the role of each screen is clear.
-3. Record this order, signing out between roles:
-   - Student: sign in, home, community post, event RSVP, marketplace, maintenance request, panic button, noise complaint, rewards, study group.
-   - Security: open panic alert, acknowledge it, resolve the noise complaint.
-   - Maintenance: move the leaking-tap ticket from Open to In Progress, then Resolved.
-   - Admin: analytics, create an event, remove or restore a feed post, deactivate and reactivate a user.
-   - Registration: create a student, then show staff sign-up rejected without `RESLINK-STAFF-2026`.
-4. Export one MP4, about 5 to 8 minutes. Put the file link in the submission (Google Drive or OneDrive set to “anyone with the link”).
-5. Add the link under this heading when the recording is ready.
+- Designed the house-and-chain ResLink logo (`reslink.jpeg`, August 2026). The icon, full logo and horizontal logo files used by the web app, the Android app and the infographic (`docs/brand/`) are all cropped from it.
 
-### 2. Infographic website
+### Infographic website
 
-Build a small separate site (one page is enough) that explains ResLink to someone who has not opened the app. It is not a second copy of the app.
-
-Include:
-
-- the ResLink logo (`docs/brand/`: `lockup.png` on dark backgrounds, `horizontal-ink.png` on light ones)
-- the line “Find. Connect. Live.”
-- who it is for: students, admin, security, maintenance
-- four short blocks: community, events, safety, maintenance
-- the live app link: [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com)
-- the group name, Dynamic Developers, and the team names: Sihle, Nomathamsanqa, and Blessing
+- Built the infographic page, `docs/index.html` (September 2026). It explains ResLink to someone who has not opened the app, without being a second copy of the app.
+- The page shows the logo and the line "Find. Connect. Live.", who the app is for (students, admin, security and maintenance), four short blocks on community, events, safety and maintenance, a link to the live app, and the team.
 
 **Live site:** [https://reslink-infographic-zkca.onrender.com](https://reslink-infographic-zkca.onrender.com)
 
-The page is `docs/index.html`. In the Meet the Team section, hovering over (or tabbing to) a name shows that member's GitHub username, and clicking it opens their GitHub profile. Render hosts the page as a free static site defined in `render.yaml`, and it updates whenever a change to `docs/` reaches `main`.
+In the Meet the Team section, hovering over (or tabbing to) a name shows that member's GitHub username, and clicking it opens their GitHub profile. Render hosts the page as a free static site defined in `render.yaml`, and it updates whenever a change to `docs/` reaches `main`.
+
+### Group video
+
+- Recorded her part of the group video, explaining the work she contributed. Each member records their own part, and the parts are joined into one video for the submission.
 
 ## Blessing's work
 
-The API in this repository already signs users in, checks roles, and stores demo data in SQLite. A real residence still needs services that sit outside the code: a database that keeps data, file storage, email, phone alerts, maps, and payments. Those accounts and contracts have to be created by Blessing. The steps below are the order to do them.
+Blessing created the group repository and leads the backend. After the prototype was in place, he added these features, each through its own pull request.
 
-Do not put passwords, API keys, or card numbers in Git. Set them in the Render dashboard under **Environment** (Render, 2025).
+### Maintenance photo upload and secrets ([#1](https://github.com/blessing-unlimited/Res_Link/pull/1))
 
-### Hosting on Render
+- Added `POST /api/maintenance/photos`, which checks that a photo is a JPEG or PNG under 5 MB and uploads it to a Cloudinary maintenance folder with the Cloudinary .NET SDK (Cloudinary, 2026).
+- Moved the API keys and other settings out of `appsettings.json` into .NET user secrets so they are not stored in Git.
+- Added PostgreSQL support: when `DATABASE_URL` is set, the API uses PostgreSQL, and otherwise SQLite. In [#4](https://github.com/blessing-unlimited/Res_Link/pull/4) he regenerated the PostgreSQL migration, read Neon's connection string into a proper Npgsql connection with SSL required, and applied migrations on start-up. This is the code the live app runs on today.
+
+### Push notifications ([#3](https://github.com/blessing-unlimited/Res_Link/pull/3), [#4](https://github.com/blessing-unlimited/Res_Link/pull/4))
+
+- Added Firebase Cloud Messaging to the Android app. It asks for notification permission on Android 13 and later, and sends the phone's push token to `PUT /api/auth/push-token`.
+- Added `FirebasePushService` on the server, which sends a push alongside every in-app notification. This covers panic alerts and noise complaints for security, new tickets for maintenance, ticket updates for the student, and new RSVPs for admins (Firebase, 2026a; Firebase, 2026b; Firebase, 2026c).
+- Kept `google-services.json` and the Firebase server key out of Git. Pushes start once the Firebase keys are set (see Hosting and configuration).
+
+### Password reset requests ([#5](https://github.com/blessing-unlimited/Res_Link/pull/5))
+
+- Added `POST /api/auth/forgot-password` with one-time reset tokens that are stored as hashes and expire after 30 minutes.
+- Added the email service that sends the reset link through SendGrid when an email key is set.
+
+### Live location for panic alerts ([#6](https://github.com/blessing-unlimited/Res_Link/pull/6))
+
+- The Android app asks for location permission when the student presses the panic button and sends the phone's latitude and longitude with the alert (Android Developers, 2025d).
+- The security screen on Android shows the coordinates and an **Open in Maps** button. If the student refuses permission, the alert still carries their room and residence.
+
+### Reward vouchers ([#7](https://github.com/blessing-unlimited/Res_Link/pull/7))
+
+- Redeeming a reward now creates a one-time voucher code that the student is shown and can find again under their recent redemptions.
+- Added a **Redemptions** tab for admins to mark a code as used or void it. Voiding a code returns the student's points and the reward's stock.
+
+### Testing
+
+- Tested the app on Android and recorded the problems he found: points could be farmed by RSVPing and cancelling, the "Community" label in the bottom bar was cut off, the maintenance form asked for a photo URL instead of a file or the camera, and long ticket titles squeezed the status text until it stacked vertically. These were fixed in [#13](https://github.com/blessing-unlimited/Res_Link/pull/13).
+
+## Hosting and configuration
+
+Do not put passwords, API keys, or connection strings in Git. Set them in the Render dashboard under **Environment** (Render, 2025).
+
+### Render
 
 The live app is a Render web service built from this repository (`blessing-unlimited/Res_Link`). `render.yaml` describes it: Docker, the free plan, and the Frankfurt region, the same as the Neon database (Render, 2025).
 
 1. On Render, choose **New > Blueprint** and connect `blessing-unlimited/Res_Link`. A repository owner may have to approve the Render GitHub app first.
 2. Render reads `render.yaml`, creates the `reslink` web service and the `reslink-infographic` static site, and generates `Jwt__Key` itself. Render may add a short suffix to each name, which is why the live addresses end in `-zkca`.
-3. When it asks for the other values, set `Staff__AccessCode`. The Cloudinary and Firebase values can stay empty until those accounts exist. Add `DATABASE_URL` only when the live data should move to Neon (step 1 below).
+3. When it asks for the other values, set `Staff__AccessCode` and `DATABASE_URL`. The Cloudinary, Firebase and email values can stay empty until those accounts exist.
 4. Each push to `main` redeploys the service. Password reset links use the service's own address automatically.
 
-### 1. Keep data after the host restarts
+### Neon database
 
-Without a database URL, the service writes SQLite under `/tmp/reslink`. Render’s free disk is wiped when the service sleeps, so the app loads the demo accounts again. The live data is kept in a Neon PostgreSQL database instead, because Neon’s free plan does not expire the way Render’s free PostgreSQL does (Neon, 2026; Render, 2026).
+Render's free disk is wiped when the service sleeps, so the live data is kept in a Neon PostgreSQL database, because Neon's free plan does not expire the way Render's free PostgreSQL does (Neon, 2026; Render, 2026). When `DATABASE_URL` is set the API uses PostgreSQL and applies the migrations in `backend/ResLink.Api/Migrations`; otherwise it uses SQLite, so local runs and tests need no database server (Microsoft, 2025c).
 
-The API is already set up for this. When `DATABASE_URL` is set it uses PostgreSQL and applies the migrations in `backend/ResLink.Api/Migrations`; otherwise it uses SQLite, so local runs and tests are unchanged (Microsoft, 2025c).
+1. In the Neon project (region: Frankfurt), open **Connect**, turn **Connection pooling** off, and copy the connection string. It starts with `postgresql://`.
+2. On the Render web service, set `DATABASE_URL` to that string. Do not paste it into Git or the group chat.
+3. On first start the API creates the tables and loads the demo accounts, but only into an empty database.
+4. After changing an entity class, add a migration from `backend/ResLink.Api` with a placeholder URL so it is generated for PostgreSQL: `DATABASE_URL="postgresql://design:design@localhost/reslink" dotnet ef migrations add DescribeTheChange`.
 
-1. In the Neon project (region: Frankfurt, the same as the Render service), open **Connect**, turn **Connection pooling** off, and copy the connection string. It starts with `postgresql://`.
-2. On the Render web service, add an environment variable named `DATABASE_URL` and paste that string. Do not paste it into Git or the group chat.
-3. Redeploy. On first start the API creates the tables and loads the demo accounts, but only into an empty database.
-4. Sign in with `student@reslink.app`. Create a post, restart the service, and confirm the post is still there.
-5. After changing an entity class, add a migration from `backend/ResLink.Api` with a placeholder URL so it is generated for PostgreSQL: `DATABASE_URL="postgresql://design:design@localhost/reslink" dotnet ef migrations add DescribeTheChange`.
-
-### 2. Move secrets out of the repository
+### Settings
 
 `appsettings.json` keeps the JWT signing key and the staff access code empty. Local runs generate a temporary key and use the demo staff code from `appsettings.Development.json`. The hosted app refuses to start without a JWT key, so the values live only on the server (OWASP, 2023).
 
-1. Render generates `Jwt__Key` from `render.yaml`. To rotate it, choose **Generate** next to it under **Environment**.
-2. Before a real venue uses the app, change `Staff__AccessCode` on Render to a new code that is not `RESLINK-STAFF-2026`.
-3. Redeploy. Old tokens stop working after a key change, which is expected. Sign in again.
-4. Share the staff code only with residence staff.
+| Setting on Render | What it does | If it is empty |
+| --- | --- | --- |
+| `Jwt__Key` | Signs sign-in tokens. Render generates it; choose **Generate** to rotate it, after which everyone signs in again. | The hosted app does not start. |
+| `Staff__AccessCode` | The code staff need to register. | Staff cannot register. |
+| `DATABASE_URL` | The Neon connection string. | Data is kept in SQLite and lost when the service sleeps. |
+| `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret` | Store maintenance photos in Cloudinary. | Photos are kept in the database, so they still survive a restart. |
+| `Firebase__ServiceAccountJson` | The Firebase server key for push notifications. | In-app notifications still work, but no pushes are sent. |
+| `Email__ApiKey`, `Email__From` | SendGrid key and sender for reset emails. | No email is sent; an admin uses **Admin Panel → Residents → Create reset link** and sends the link to the resident. |
 
-### 3. Store maintenance photos
+## Next steps for a real residence
 
-Students attach a photo when they report an issue. On Android they can take one with the camera or choose one from the gallery, and on the web they pick a file (a phone browser also offers the camera). Both apps shrink the photo to a JPEG of at most 1600 pixels before sending it to `POST /api/maintenance/photos`, which only accepts real JPEG or PNG files under 5 MB.
+The app works end to end for the demo. These steps need accounts, contracts or a residence to work with, so they are left for when a residence takes ResLink on.
 
-Until Cloudinary is set up, the API keeps each photo in the database (Neon on the live app), so photos survive a restart. Moving them to Cloudinary keeps the database small once a residence has many tickets:
-
-1. Create a free Cloudinary account and copy the cloud name, API key, and API secret from the dashboard.
-2. Add `Cloudinary__CloudName`, `Cloudinary__ApiKey`, and `Cloudinary__ApiSecret` on Render. New photos then go to Cloudinary automatically; older ones stay in the database and still load.
-3. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
-
-### 4. Tell staff when something happens
-
-The app already writes an in-app notification row. A residence also needs a push or email when the phone is locked (Google, 2025).
-
-1. Create a Firebase project and add an Android app with package name `com.dynamicdevelopers.reslink`.
-2. Download `google-services.json` into the Android app. Do not commit the private server key.
-3. Add Firebase Cloud Messaging to the Android app and send the device token to a new API field on the user.
-4. On the server, when a panic alert, noise complaint, or maintenance ticket is created, send an FCM message to the security or maintenance tokens.
-5. Test with the phone screen locked. The security phone should show the panic alert without opening ResLink first.
-
-### 5. Email for password reset
-
-“Forgot password?” is on the web and Android sign-in screens. `POST /api/auth/forgot-password` creates a one-time link that expires in 30 minutes and always returns the same message, and `/reset-password?token=…` opens the page that sets the new password (OWASP, 2023).
-
-A no-reply sender needs a domain, so email is postponed until a residence buys ResLink. Until then:
-
-1. With no `Email__ApiKey` set, the API skips sending and logs a warning instead of failing.
-2. An admin opens **Admin Panel → Residents**, presses **Create reset link** for the resident, and sends them the copied link (for example on WhatsApp).
-3. When a residence signs up, verify its domain with the email provider (for example SendGrid), then set `Email__ApiKey` and `Email__From` (such as `noreply@<residence domain>`) on Render. The same flow then emails the link.
-
-### 6. Reach security outside the app
-
-The panic button creates a row that security sees after they sign in. A real emergency also needs a phone call or SMS to the duty officer.
-
-1. Agree the duty numbers with the residence (voice number and SMS number).
-2. Create a Twilio (or similar) account and buy a number.
-3. Store `Sms__AccountSid`, `Sms__Token`, and `Sms__From` on Render.
-4. When a student sends a panic alert, send one SMS with the student name, room, and residence. Do not send the message again on every status change.
-5. Test with your own phone before using the residence number.
-
-### 7. Live location
-
-Panic alerts currently store the student’s room and residence. Live GPS needs the phone’s location permission and a maps key (Google, 2025).
-
-1. In the Android app, request location permission only when the student presses the panic button.
-2. Send latitude and longitude on `POST /api/emergencies`.
-3. Create a Google Maps key restricted to the ResLink Android package and the web dashboard domain.
-4. Show the point on the security screen. If the student denies permission, keep the room text as the fallback.
-5. Test indoors and outdoors. Do not log coordinates in Render’s public logs.
-
-### 8. Pay for rewards
-
-Redeeming points only reduces a number in the database. Food vouchers and laundry credit need a payment or voucher partner.
-
-1. Choose one partner the residence already uses (cafe till or laundry vendor).
-2. Use their test API. Never store card numbers in ResLink (OWASP, 2023).
-3. On redeem, create a one-time code, store it against the redemption, and show it once to the student.
-4. Add an admin screen to mark the code as used.
-5. Run a test redemption and confirm the points do not return unless the admin voids the code.
-
-### 9. QR check-in at the door
-
-Events show a demo code. A real check-in needs a code that changes per event and a camera scan.
-
-1. When an admin publishes an event, generate a random check-in code and a QR image of `https://reslink-zkca.onrender.com/check-in/{code}`.
-2. The student screen scans or pastes that code and calls `POST /api/events/{id}/check-in`.
-3. Award the attendance points only once per student.
-4. Test with two phones: one showing the QR, one scanning it.
-
-### 10. Backups and a custom domain
-
-1. In the Neon project, check how far back the plan can restore, and set up daily snapshots kept for at least seven days if the plan allows it (Neon, 2026).
-2. Add the residence domain in Render and set the DNS records they provide.
-3. Confirm `https://` loads the app and that sign-in still works.
-4. Write the restore steps in this file: which backup date, which command, and who to call.
+1. **Turn on push notifications.** Add `google-services.json` from the Firebase project (package `com.dynamicdevelopers.reslink`) to `android/app` without committing it, set `Firebase__ServiceAccountJson` on Render, and test with the security phone locked (Google, 2025).
+2. **Move photos to Cloudinary.** Set the three Cloudinary values on Render. New photos then go to Cloudinary; older ones stay in the database and still load.
+3. **Send reset emails.** Verify the residence's domain with SendGrid, then set `Email__ApiKey` and `Email__From` (such as `noreply@<residence domain>`).
+4. **Change the staff code.** Replace `RESLINK-STAFF-2026` on Render with a new code and share it only with residence staff.
+5. **Reach security outside the app.** Send one SMS with the student's name, room and residence to the duty officer when a panic alert is raised, through Twilio or a similar service.
+6. **Connect vouchers to a partner.** Vouchers already have one-time codes; a cafe till or laundry vendor needs to accept them. Never store card numbers in ResLink (OWASP, 2023).
+7. **QR check-in at events.** Generate a random code per event, show it as a QR code, and award attendance points once per student who scans it.
+8. **Backups and a custom domain.** Set up daily Neon snapshots kept for at least seven days if the plan allows it (Neon, 2026), add the residence's domain in Render, and write the restore steps in this file.
 
 ## Project structure
 
@@ -359,11 +329,25 @@ Android Developers (2025b) *Material Design 3 in Compose*. Available at: https:/
 
 Android Developers (2025c) *Build adaptive navigation*. Available at: https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation (Accessed: 2 October 2026).
 
+Android Developers (2025d) *Get the last known location*. Available at: https://developer.android.com/develop/sensors-and-location/location/retrieve-current (Accessed: 5 October 2026).
+
+Android Developers (2025e) *Photo picker*. Available at: https://developer.android.com/training/data-storage/shared/photo-picker (Accessed: 5 October 2026).
+
+Cloudinary (2026) *.NET SDK*. Available at: https://cloudinary.com/documentation/dotnet_integration (Accessed: 5 October 2026).
+
+Firebase (2026a) *Add the Firebase Admin SDK to your server*. Available at: https://firebase.google.com/docs/admin/setup (Accessed: 5 October 2026).
+
+Firebase (2026b) *Send messages to multiple devices*. Available at: https://firebase.google.com/docs/cloud-messaging/send-message (Accessed: 5 October 2026).
+
+Firebase (2026c) *Set up a Firebase Cloud Messaging client app on Android*. Available at: https://firebase.google.com/docs/cloud-messaging/android/client (Accessed: 5 October 2026).
+
 GitHub (2026) *Octicons*. Available at: https://primer.style/octicons/ (Accessed: 5 October 2026).
 
 Google (2025) *Firebase Cloud Messaging*. Available at: https://firebase.google.com/docs/cloud-messaging (Accessed: 25 September 2026).
 
 Google Fonts (2026) *Plus Jakarta Sans*. Available at: https://fonts.google.com/specimen/Plus+Jakarta+Sans (Accessed: 2 October 2026).
+
+Lucide (2026) *Lucide icons*. Available at: https://lucide.dev/ (Accessed: 5 October 2026).
 
 Material Design (2025) *Icons*. Available at: https://m3.material.io/styles/icons/overview (Accessed: 25 September 2026).
 
