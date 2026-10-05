@@ -146,6 +146,7 @@ fun UsersScreen(api: ResLinkApi) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SecurityQueuesScreen(api: ResLinkApi) {
     var alerts by remember { mutableStateOf(listOf<EmergencyAlertDto>()) }
@@ -170,19 +171,18 @@ fun SecurityQueuesScreen(api: ResLinkApi) {
         if (complaints.isEmpty()) item { EmptyState("No noise complaints", "It's quiet tonight.", Icons.AutoMirrored.Outlined.VolumeUp, Tints.Sky) }
         items(complaints) { item ->
             ResCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(item.location, color = Ink, fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.location, color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     StatusChip(item.status)
                 }
                 Text("${item.reporterName} · ${if (item.isAnonymous) "Anonymous" else "Named"}", color = Muted)
                 Text(item.description, modifier = Modifier.padding(top = 8.dp))
-                Row {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Open", "Resolved", "Withdrawn").forEach { status ->
                         FilterChip(
                             selected = item.status == status,
                             onClick = { scope.launch { api.updateNoise(item.id, UpdateStatusRequest(status)); reload() } },
-                            label = { Text(if (status == "Withdrawn") "Withdraw" else status) },
-                            modifier = Modifier.padding(end = 6.dp)
+                            label = { Text(if (status == "Withdrawn") "Withdraw" else status, maxLines = 1) }
                         )
                     }
                 }
@@ -192,8 +192,8 @@ fun SecurityQueuesScreen(api: ResLinkApi) {
         if (visitors.isEmpty()) item { EmptyState("No visitors", "Signed-in visitors show up here.", Icons.Outlined.Badge, Tints.Slate) }
         items(visitors) { visitor ->
             ResCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(visitor.visitorName, color = Ink, fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(visitor.visitorName, color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     StatusChip(visitor.status)
                 }
                 Text("Host ${visitor.hostName} · ${visitor.hostRoom}", color = Muted)

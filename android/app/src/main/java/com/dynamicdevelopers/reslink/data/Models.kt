@@ -148,6 +148,8 @@ data class CreateMaintenanceRequest(
     val photoUrl: String?
 )
 
+data class PhotoUploadResponse(val url: String)
+
 data class UpdateTicketStatusRequest(val status: String, val resolutionNotes: String?)
 data class UpdateStatusRequest(val status: String)
 data class UpdateActiveRequest(val isActive: Boolean)

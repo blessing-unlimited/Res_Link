@@ -247,6 +247,16 @@ public class AppNotification
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+// Used when Cloudinary is not configured, so photos still survive a restart in the hosted database.
+public class MaintenancePhoto
+{
+    public Guid Id { get; set; }
+    public Guid UploadedById { get; set; }
+    public string ContentType { get; set; } = "image/jpeg";
+    public byte[] Data { get; set; } = [];
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class PasswordResetToken
 {
     public Guid Id { get; set; }

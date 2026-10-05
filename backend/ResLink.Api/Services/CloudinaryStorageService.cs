@@ -5,22 +5,30 @@ namespace ResLink.Api.Services
 {
     public class CloudinaryStorageService
     {
-        private readonly Cloudinary _cloudinary;
+        private readonly Cloudinary? _cloudinary;
 
         public CloudinaryStorageService(IConfiguration configuration)
         {
-            var cloudName = configuration["Cloudinary:CloudName"] ?? throw new InvalidOperationException("Cloudinary cloud name is missing.");
+            var cloudName = configuration["Cloudinary:CloudName"];
+            var apiKey = configuration["Cloudinary:ApiKey"];
+            var apiSecret = configuration["Cloudinary:ApiSecret"];
 
-            var apiKey = configuration["Cloudinary:ApiKey"] ?? throw new InvalidOperationException("Cloudinary API key is missing");
-
-            var apiSecret = configuration["Cloudinary:ApiSecret"] ?? throw new InvalidOperationException("Cloudinary API secret is missing");
+            if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
+            {
+                return;
+            }
 
             var account = new Account(cloudName, apiKey, apiSecret);
             _cloudinary = new Cloudinary(account);
         }
 
+        public bool IsConfigured => _cloudinary is not null;
+
         public async Task<string> UploadAsync(Stream fileStream, string filename)
         {
+            if (_cloudinary is null)
+                throw new InvalidOperationException("Cloudinary is not configured.");
+
             var uploadParameters = new ImageUploadParams
             {
                 File = new FileDescription(filename, fileStream),

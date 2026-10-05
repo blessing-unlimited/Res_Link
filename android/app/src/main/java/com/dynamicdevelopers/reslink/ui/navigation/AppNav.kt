@@ -40,8 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -213,7 +215,14 @@ private fun RoleShell(
                                     selected = current == tab.route,
                                     onClick = { goTo(tab.route) },
                                     icon = { Icon(tab.icon, tab.label) },
-                                    label = { Text(tab.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                                    label = {
+                                        // Five labels share a phone's width, so a large system font would wrap "Community".
+                                        val fontScale = LocalDensity.current.fontScale
+                                        Text(
+                                            tab.label, fontSize = (11f / maxOf(fontScale, 1f)).sp, fontWeight = FontWeight.SemiBold,
+                                            letterSpacing = 0.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Forest,
                                         selectedTextColor = Forest,

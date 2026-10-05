@@ -54,7 +54,8 @@ function icon(name) {
     sparkle: '<path d="M12 4v4M12 16v4M4 12h4M16 12h4M6.5 6.5l2.5 2.5M15 15l2.5 2.5M6.5 17.5 9 15M15 9l2.5-2.5"/>',
     book: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H19v14H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/>',
     back: '<path d="M14.5 6 8.5 12l6 6"/>',
-    map: '<path d="m4 6.5 5-2 6 2 5-2v13l-5 2-6-2-5 2z"/><path d="M9 4.5v13M15 6.5v13"/>'
+    map: '<path d="m4 6.5 5-2 6 2 5-2v13l-5 2-6-2-5 2z"/><path d="M9 4.5v13M15 6.5v13"/>',
+    camera: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.5-2h5.4l1.5 2h2.3A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.3"/>'
   };
   const d = paths[name] || paths.home;
   return `<span class="ico-svg" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg></span>`;
@@ -75,7 +76,8 @@ async function readError(res) {
 
 async function api(path, options = {}) {
   // Fetch keeps the UI on the same origin as the API (MDN, 2025).
-  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  // A FormData body needs the browser to set its own multipart boundary header.
+  const headers = { ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }), ...(options.headers || {}) };
   if (state.user?.token) headers.Authorization = `Bearer ${state.user.token}`;
   const res = await fetch(path, { ...options, headers });
   // A rejected token after a Render restart must drop the saved session (OWASP, 2023).
@@ -729,6 +731,19 @@ async function groups(main) {
   main.querySelectorAll(".leave").forEach(el => el.onclick = async () => { await api(`/api/study-groups/${el.dataset.id}/leave`, { method: "DELETE" }); groups(main); });
 }
 
+// Redrawing on a canvas turns any photo the browser can open into a JPEG well under the 5 MB limit (MDN, 2025).
+async function shrinkPhoto(file, maxEdge = 1600) {
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" }).catch(() => null);
+  if (!bitmap) throw new Error("That file is not a photo this browser can open.");
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Could not prepare the photo.")), "image/jpeg", 0.82));
+}
+
 async function maintenance(main) {
   const tickets = await api("/api/maintenance");
   const map = { All: () => true, Pending: t => t.status === "Open", "In Progress": t => t.status === "InProgress", Resolved: t => t.status === "Resolved", Cancelled: t => t.status === "Cancelled" };
@@ -746,6 +761,15 @@ async function maintenance(main) {
         <label class="full">Location<input id="t-loc" value="${esc(state.user.room ? "Room " + state.user.room : "")}" /></label>
         <label>Category<select id="t-cat"><option>Plumbing</option><option>Electrical</option><option>Furniture</option><option>General</option></select></label>
         <label>Priority<select id="t-pri"><option>Medium</option><option>High</option><option>Low</option></select></label>
+        <div class="full photo-field">
+          <span class="photo-label">Photo <span class="muted">(optional)</span></span>
+          <label class="photo-drop" id="t-photo-drop">
+            <input type="file" id="t-photo" accept="image/*" />
+            <img id="t-photo-preview" alt="" hidden />
+            <span class="photo-hint" id="t-photo-hint">${icon("camera")}<b>Take or choose a photo</b><small>JPEG or PNG. Large photos are shrunk before upload.</small></span>
+          </label>
+          <button type="button" class="btn ghost sm" id="t-photo-clear" hidden>Remove photo</button>
+        </div>
       </div>
       <div class="form-actions"><button class="btn ghost" data-cancel="t-box">Cancel</button><button class="btn" id="new-ticket">Submit request</button></div>
     </div>
@@ -756,6 +780,7 @@ async function maintenance(main) {
         <div class="tags" style="margin-bottom:6px"><b style="margin-right:4px">${esc(t.title)}</b><span class="tag dot ${tagClass(prettyStatus(t.status))}">${prettyStatus(t.status)}</span><span class="tag ${tagClass(t.priority)}">${esc(t.priority)}</span></div>
         <div class="muted">${esc(t.category)} · ${esc(t.location)} · ${esc(t.reporterName)} · ${timeAgo(t.createdAt)}</div>
         ${t.description ? `<p class="small" style="margin-top:6px;color:var(--ink-2)">${esc(t.description)}</p>` : ""}
+        ${t.photoUrl ? `<a class="ticket-photo" href="${esc(t.photoUrl)}" target="_blank" rel="noopener"><img src="${esc(t.photoUrl)}" alt="Photo of ${esc(t.title)}" loading="lazy" /></a>` : ""}
         ${t.resolutionNotes ? `<p class="small muted" style="margin-top:4px">Notes: ${esc(t.resolutionNotes)}</p>` : ""}
       </div>
       <div class="end">
@@ -769,11 +794,39 @@ async function maintenance(main) {
     </div>`).join("")}</div>` : emptyState("No requests here", student ? "Everything working? Great. Report an issue any time." : "Nothing waiting in this list.", "maintenance", "gold")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; maintenance(main); });
   bindToggles(main, { "toggle-t": "t-box" });
+  const photoInput = document.getElementById("t-photo");
+  const photoPreview = document.getElementById("t-photo-preview");
+  const photoClear = document.getElementById("t-photo-clear");
+  const showPhoto = file => {
+    if (photoPreview.src) URL.revokeObjectURL(photoPreview.src);
+    photoPreview.hidden = !file;
+    photoClear.hidden = !file;
+    document.getElementById("t-photo-hint").hidden = !!file;
+    if (file) photoPreview.src = URL.createObjectURL(file); else photoPreview.removeAttribute("src");
+  };
+  if (photoInput) {
+    photoInput.onchange = () => showPhoto(photoInput.files[0]);
+    photoClear.onclick = () => { photoInput.value = ""; showPhoto(null); };
+  }
   const nt = document.getElementById("new-ticket"); if (nt) nt.onclick = async () => {
     if (!val("t-title").trim()) { toast("Describe the issue first.", "error"); return; }
-    await api("/api/maintenance", { method: "POST", body: JSON.stringify({ title: val("t-title"), description: val("t-desc"), location: val("t-loc"), category: val("t-cat"), priority: val("t-pri") }) });
-    toast("Request sent to maintenance.");
-    maintenance(main);
+    nt.disabled = true;
+    try {
+      let photoUrl = null;
+      const file = photoInput.files[0];
+      if (file) {
+        const form = new FormData();
+        form.append("file", await shrinkPhoto(file), "ticket.jpg");
+        photoUrl = (await api("/api/maintenance/photos", { method: "POST", body: form })).url;
+      }
+      await api("/api/maintenance", { method: "POST", body: JSON.stringify({ title: val("t-title"), description: val("t-desc"), location: val("t-loc"), category: val("t-cat"), priority: val("t-pri"), photoUrl }) });
+      toast("Request sent to maintenance.");
+      maintenance(main);
+    } catch (err) {
+      if (err instanceof SessionError) throw err;
+      toast(err.message || "Could not send the request.", "error");
+      nt.disabled = false;
+    }
   };
   main.querySelectorAll(".st").forEach(el => el.onclick = async () => {
     await api(`/api/maintenance/${el.dataset.id}/status`, { method: "PUT", body: JSON.stringify({ status: el.dataset.s, resolutionNotes: "Updated by staff" }) });
@@ -901,6 +954,8 @@ async function rewards(main) {
   const redemptions = state.user.role === "Student" ? await api("/api/rewards/redemptions").catch(() => []) : [];
   const filtered = state.filter === "All" ? items : items.filter(r => r.category === state.filter);
   const student = state.user.role === "Student";
+  const profile = await api("/api/profile").catch(() => null);
+  if (profile && profile.points !== state.user.points) { state.user.points = profile.points; save(state.user); }
 
   main.innerHTML = `
     <section class="balance">

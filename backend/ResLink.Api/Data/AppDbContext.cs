@@ -23,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AppNotification> Notifications => Set<AppNotification>();
     public DbSet<Visitor> Visitors => Set<Visitor>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<MaintenancePhoto> MaintenancePhotos => Set<MaintenancePhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
