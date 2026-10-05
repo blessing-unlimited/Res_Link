@@ -670,7 +670,7 @@ async function market(main) {
     </div>
     ${pills(["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Food", "Services", "Other"].map(f => [f, f === "All" ? "Everything" : f]), state.filter)}
     ${filtered.length ? `<div class="grid-3">${filtered.map(i => {
-      const mine = i.sellerId === state.user.userId;
+      const mine = i.sellerId === state.user.userId || state.user.role === "Admin";
       return `<article class="card flush hover">
         <div class="media-art ${marketTint[i.category] || "slate"}">${icon(marketIcon[i.category] || "market")}</div>
         <div class="body">
