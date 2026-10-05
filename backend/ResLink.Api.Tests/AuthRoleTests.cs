@@ -21,6 +21,8 @@ public class AuthRoleTests
         {
             builder.UseSetting("ConnectionStrings:Default", $"Data Source={_dbPath}");
             builder.UseSetting("Jwt:Key", "ResLink-DynamicDevelopers-Prototype-Jwt-Key-2026!");
+            builder.UseSetting("Jwt:Issuer", "ResLink.Api");
+            builder.UseSetting("Jwt:Audience", "ResLink.Android");
             builder.UseSetting("Staff:AccessCode", "RESLINK-STAFF-2026");
         });
     }
@@ -110,6 +112,49 @@ public class AuthRoleTests
         Assert.IsNotNull(auth);
         Assert.AreEqual("Student", auth.Role);
         Assert.IsFalse(string.IsNullOrWhiteSpace(auth.Token));
+    }
+
+    [TestMethod]
+    public async Task Forgot_Password_Succeeds_Without_Email_Configured()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest("student@reslink.app"));
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task Admin_Reset_Link_Sets_A_New_Password_Once()
+    {
+        var client = _factory.CreateClient();
+        var admin = await Login(client, "admin@reslink.app", "Admin123!");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", admin.Token);
+
+        var users = await client.GetFromJsonAsync<List<UserSummaryDto>>("/api/admin/users");
+        var student = users!.First(u => u.Email == "student@reslink.app");
+        var linkResponse = await client.PostAsync($"/api/admin/users/{student.Id}/reset-link", null);
+        Assert.AreEqual(HttpStatusCode.OK, linkResponse.StatusCode);
+        var link = await linkResponse.Content.ReadFromJsonAsync<ResetLinkDto>();
+        var token = Uri.UnescapeDataString(new Uri(link!.Link).Query.Split("token=")[1]);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        var reset = await client.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequest(token, "NewPass123!"));
+        Assert.AreEqual(HttpStatusCode.OK, reset.StatusCode);
+        await Login(client, "student@reslink.app", "NewPass123!");
+
+        var reused = await client.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequest(token, "Another123!"));
+        Assert.AreEqual(HttpStatusCode.BadRequest, reused.StatusCode);
+
+        var malformed = await client.PostAsJsonAsync("/api/auth/reset-password", new ResetPasswordRequest("not-a-token!", "Another123!"));
+        Assert.AreEqual(HttpStatusCode.BadRequest, malformed.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task Reset_Password_Page_Is_Served()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/reset-password?token=abc");
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        StringAssert.Contains(await response.Content.ReadAsStringAsync(), "<div id=\"app\">");
     }
 
     private static async Task<AuthResponse> Login(HttpClient client, string email, string password)

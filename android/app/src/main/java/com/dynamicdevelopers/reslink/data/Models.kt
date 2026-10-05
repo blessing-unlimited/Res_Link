@@ -16,6 +16,9 @@ data class AuthResponse(
 
 data class LoginRequest(val email: String, val password: String)
 
+data class ForgotPasswordRequest(val email: String)
+data class MessageResponse(val message: String)
+
 data class StudentRegisterRequest(
     val fullName: String,
     val email: String,
@@ -200,6 +203,9 @@ data class RedemptionDto(
     val rewardId: String = "",
     val rewardName: String,
     val pointsCost: Int = 0,
+    val voucherCode: String = "",
+    val isUsed: Boolean = false,
+    val isVoided: Boolean = false,
     val createdAt: String
 )
 

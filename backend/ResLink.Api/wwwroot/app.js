@@ -80,6 +80,17 @@ const fmtDate = iso => {
   return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
 
+// Location is asked for only when the panic button is pressed; a denial or timeout still sends the alert (MDN, 2025).
+function currentPosition() {
+  if (!navigator.geolocation) return Promise.resolve(null);
+  return new Promise(resolve => navigator.geolocation.getCurrentPosition(
+    p => resolve(p.coords), () => resolve(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }));
+}
+
+const mapLink = a => a.latitude != null && a.longitude != null
+  ? ` · <a class="link" href="https://www.google.com/maps?q=${a.latitude},${a.longitude}" target="_blank" rel="noopener">Open in Maps</a>`
+  : "";
+
 function brand() {
   return `<div class="brand-row"><img src="reslink.jpeg" alt="ResLink" /></div>`;
 }
@@ -89,6 +100,12 @@ function navButtons(nav) {
 }
 
 async function render() {
+  const resetToken = location.pathname === "/reset-password" ? new URLSearchParams(location.search).get("token") : null;
+  if (resetToken) {
+    app.innerHTML = resetHtml();
+    bindReset(resetToken);
+    return;
+  }
   // The sidebar is only shown once a token is stored (OWASP, 2023).
   if (!state.user?.token) {
     if (state.user) save(null);
@@ -149,6 +166,13 @@ function authHtml() {
     <label>Password<input id="password" type="password" value="Student123!" /></label>
     <p class="error" id="auth-error"></p>
     <p><button class="btn wide" id="login">Log in</button></p>
+    <p><button class="link" id="show-f">Forgot password?</button></p>
+    <div class="hidden" id="f-box">
+      <h3>Reset your password</h3>
+      <p class="muted">Enter your account email. If email is not set up yet, ask the residence admin for a reset link.</p>
+      <label>Email<input id="f-email" type="email" /></label>
+      <p class="muted" id="f-msg"></p><button class="btn" id="send-f">Send reset link</button>
+    </div>
     <p class="row"><button class="btn ghost" id="show-s">Student sign-up</button><button class="btn ghost" id="show-t">Staff sign-up</button></p>
     <div class="hidden" id="s-box">
       <h3>Student sign-up</h3>
@@ -169,13 +193,55 @@ function authHtml() {
   </div></div></div>`;
 }
 
+function resetHtml() {
+  return `<div class="auth-wrap">
+    <section class="auth-hero">
+      <img class="auth-mark" src="reslink.jpeg" alt="ResLink" />
+      <div><h2>Set a new password.</h2><p>This link works once and expires 30 minutes after it was created.</p></div>
+    </section>
+    <div class="auth-panel"><div class="auth-card">
+    <h1>New password</h1>
+    <label>New password<input id="r-pass" type="password" autocomplete="new-password" /></label>
+    <label>Confirm password<input id="r-pass2" type="password" autocomplete="new-password" /></label>
+    <p class="error" id="r-error"></p>
+    <p><button class="btn wide" id="r-save">Save password</button></p>
+    <p><button class="link" id="r-back">Back to sign in</button></p>
+  </div></div></div>`;
+}
+
+function bindReset(token) {
+  const back = () => { history.replaceState(null, "", "/"); render(); };
+  document.getElementById("r-back").onclick = back;
+  document.getElementById("r-save").onclick = async () => {
+    const error = document.getElementById("r-error");
+    if (val("r-pass").length < 8) { error.textContent = "Use at least 8 characters."; return; }
+    if (val("r-pass") !== val("r-pass2")) { error.textContent = "The passwords do not match."; return; }
+    try {
+      await api("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, newPassword: val("r-pass") }) });
+      sessionNotice = "Password saved. Sign in with your new password.";
+      back();
+    } catch (e) { error.textContent = e.message; }
+  };
+}
+
 function bindAuth() {
   api("/api/auth/residences").then(items => {
-    ["s-res", "t-res"].forEach(id => { document.getElementById(id).innerHTML = items.map(r => `<option value="${r.id}">${r.name}</option>`).join(""); });
-  }).catch(() => {});
+    ["s-res", "t-res"].forEach(id => { document.getElementById(id).innerHTML = items.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join(""); });
+    if (!items.length) ["s-error", "t-error"].forEach(id => { document.getElementById(id).textContent = "No residences are set up yet. Ask the residence admin to add one."; });
+  }).catch(() => {
+    ["s-error", "t-error"].forEach(id => { document.getElementById(id).textContent = "Residences could not be loaded. Check that the API is running, then refresh."; });
+  });
   document.getElementById("login").onclick = async () => {
     try { save(await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: val("email"), password: val("password") }) })); state.page = "home"; render(); }
     catch { document.getElementById("auth-error").textContent = "Invalid email or password."; }
+  };
+  document.getElementById("show-f").onclick = () => document.getElementById("f-box").classList.toggle("hidden");
+  document.getElementById("send-f").onclick = async () => {
+    const msg = document.getElementById("f-msg");
+    try {
+      const res = await api("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: val("f-email") }) });
+      msg.textContent = res.message;
+    } catch (e) { msg.textContent = e.message; }
   };
   document.getElementById("show-s").onclick = () => document.getElementById("s-box").classList.toggle("hidden");
   document.getElementById("show-t").onclick = () => document.getElementById("t-box").classList.toggle("hidden");
@@ -345,7 +411,7 @@ async function events(main) {
   });
 }
 
-// Marketplace, groups, tickets, and rewards expose undo so a lecturer tap is not final.
+// Marketplace, groups, and tickets expose undo so a lecturer tap is not final; reward redemptions are final.
 async function market(main) {
   const items = await api("/api/marketplace");
   const filtered = state.filter === "All" ? items : items.filter(i => i.category === state.filter);
@@ -467,7 +533,7 @@ async function security(main) {
     main.innerHTML = `
       <div class="page-head"><div><h1>Security</h1><p>Report a visitor, noise issue, or emergency.</p></div></div>
       <div class="grid-2">
-        <div class="card"><h3>Panic button</h3><p class="muted">Your room ${esc(state.user.room || "")} will be sent to security.</p><button class="btn danger" id="panic">Send panic alert</button><p id="p-msg"></p></div>
+        <div class="card"><h3>Panic button</h3><p class="muted">Security gets your room ${esc(state.user.room || "")} and, if you allow it, your live location.</p><button class="btn danger" id="panic">Send panic alert</button><p id="p-msg"></p></div>
         <div class="card"><h3>Noise complaint</h3>
           <label>Location<input id="n-loc" /></label><label>What is happening?<input id="n-desc" /></label>
           <label><input id="n-anon" type="checkbox" checked /> Report anonymously</label>
@@ -482,7 +548,12 @@ async function security(main) {
       ${mineNoise.length ? `<div class="section-head"><h2>Your noise reports</h2></div>
         ${mineNoise.map(n => `<div class="card mb between"><div><b>${esc(n.location)}</b><div class="muted">${esc(n.status)} · ${fmtDate(n.createdAt)}</div></div>
         ${n.status === "Open" ? `<button class="btn ghost wd-ns" data-id="${n.id}">Withdraw</button>` : ""}</div>`).join("")}` : ""}`;
-    document.getElementById("panic").onclick = async () => { await api("/api/emergencies", { method: "POST", body: JSON.stringify({ message: "Panic button activated" }) }); security(main); };
+    document.getElementById("panic").onclick = async () => {
+      document.getElementById("p-msg").textContent = "Sending alert…";
+      const coords = await currentPosition();
+      await api("/api/emergencies", { method: "POST", body: JSON.stringify({ message: "Panic button activated", latitude: coords?.latitude ?? null, longitude: coords?.longitude ?? null }) });
+      security(main);
+    };
     document.getElementById("n-send").onclick = async () => { await api("/api/noise", { method: "POST", body: JSON.stringify({ location: val("n-loc"), description: val("n-desc"), isAnonymous: document.getElementById("n-anon").checked }) }); security(main); };
     document.getElementById("v-send").onclick = async () => { await api("/api/visitors", { method: "POST", body: JSON.stringify({ visitorName: val("v-name"), hostRoom: val("v-room"), purpose: val("v-purpose") }) }); document.getElementById("v-msg").textContent = "Visitor registered."; };
     main.querySelectorAll(".wd-em").forEach(el => el.onclick = async () => { await api(`/api/emergencies/${el.dataset.id}/withdraw`, { method: "PUT" }); security(main); });
@@ -506,7 +577,7 @@ async function security(main) {
     </div>
     ${tab === "visitors" ? (visitors.length ? visitors.map(v => `<div class="card mb between"><div><b>${esc(v.visitorName)}</b><div class="muted">Host ${esc(v.hostName)} · ${esc(v.hostRoom)} · ${esc(v.purpose)}</div></div>
         <div>${v.status === "OnSite" ? `<button class="btn ghost v-out" data-id="${v.id}">Check out</button>` : `<span class="tag gray">${esc(v.status)}</span>`}</div></div>`).join("") : `<div class="empty">No visitors logged today</div>`)
-      : `${alerts.map(a => `<div class="card mb"><div class="between"><b>${esc(a.reporterName)}</b><span class="tag ${tagClass(prettyStatus(a.status))}">${prettyStatus(a.status)}</span></div><p class="muted">${esc(a.location)}</p><p>${esc(a.message)}</p>
+      : `${alerts.map(a => `<div class="card mb"><div class="between"><b>${esc(a.reporterName)}</b><span class="tag ${tagClass(prettyStatus(a.status))}">${prettyStatus(a.status)}</span></div><p class="muted">${esc(a.location)}${mapLink(a)}</p><p>${esc(a.message)}</p>
         ${a.status !== "Open" ? `<button class="btn ghost em" data-id="${a.id}" data-s="Open">Reopen</button>` : ""}
         <button class="btn ghost em" data-id="${a.id}" data-s="Acknowledged">Acknowledge</button>
         <button class="btn ghost em" data-id="${a.id}" data-s="Resolved">Resolve</button>
@@ -690,6 +761,7 @@ async function admin(main) {
           </div>
           <div>
             <span class="tag ${tagClass(u.role)}">${esc(u.isActive ? u.role : "Inactive")}</span>
+            <button class="btn ghost reset-link" data-id="${u.id}" data-name="${esc(u.fullName)}">Create reset link</button>
             <button class="btn ghost act" data-id="${u.id}" data-on="${u.isActive}">
               ${u.isActive ? "Deactivate" : "Activate"}
             </button>
@@ -732,6 +804,14 @@ async function admin(main) {
         b.onclick = () => {
             state.tab = b.dataset.tab;
             admin(main);
+        };
+    });
+
+    main.querySelectorAll(".reset-link").forEach(el => {
+        el.onclick = async () => {
+            const result = await api(`/api/admin/users/${el.dataset.id}/reset-link`, { method: "POST" });
+            const copied = await navigator.clipboard?.writeText(result.link).then(() => true, () => false);
+            prompt(`${copied ? "Copied. " : ""}Send this one-time link to ${el.dataset.name}. It expires in 30 minutes.`, result.link);
         };
     });
 

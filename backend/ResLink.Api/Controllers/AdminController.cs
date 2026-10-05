@@ -11,7 +11,7 @@ namespace ResLink.Api.Controllers;
 
 [ApiController]
 [Authorize]
-public class AdminController(AppDbContext db, CurrentUser current) : ControllerBase
+public class AdminController(AppDbContext db, CurrentUser current, PasswordResetService passwordResets) : ControllerBase
 {
     // Dashboard payload is role-specific so staff see pulse stats and students do not (Microsoft, 2025e).
     [HttpGet("api/dashboard")]
@@ -81,6 +81,26 @@ public class AdminController(AppDbContext db, CurrentUser current) : ControllerB
         user.IsActive = request.IsActive;
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // Until email has a residence domain, an admin hands the resident a one-time link directly.
+    [HttpPost("api/admin/users/{id:guid}/reset-link")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ResetLinkDto>> CreateResetLink(Guid id)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (current.ResidenceId is Guid residenceId && user.ResidenceId != residenceId)
+        {
+            return Forbid();
+        }
+
+        var (link, expiresAt) = await passwordResets.CreateLinkAsync(user, Request);
+        return Ok(new ResetLinkDto(link, expiresAt));
     }
 
     [HttpGet("api/notifications")]

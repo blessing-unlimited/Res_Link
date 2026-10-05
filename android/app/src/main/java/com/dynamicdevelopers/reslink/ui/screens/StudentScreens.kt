@@ -567,14 +567,8 @@ fun RewardsScreen(api: ResLinkApi, session: SessionStore) {
         items(redemptions) { item ->
             ResCard {
                 Text(item.rewardName, color = Ink, fontWeight = FontWeight.SemiBold)
-                Text("${item.pointsCost} pts", color = Muted)
-                TextButton(onClick = {
-                    scope.launch {
-                        api.cancelRedemption(item.id)
-                        session.updatePoints(session.points() + item.pointsCost)
-                        reload()
-                    }
-                }) { Text("Undo redeem", color = Forest) }
+                Text("${item.pointsCost} pts · ${item.voucherCode}", color = Muted)
+                StatusChip(if (item.isUsed) "Used" else if (item.isVoided) "Voided" else "Pending")
             }
         }
     }

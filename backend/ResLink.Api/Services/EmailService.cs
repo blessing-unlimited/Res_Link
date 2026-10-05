@@ -3,16 +3,18 @@ using SendGrid.Helpers.Mail;
 
 namespace ResLink.Api.Services;
 
-public class EmailService(IConfiguration configuration)
+public class EmailService(IConfiguration configuration, ILogger<EmailService> logger)
 {
-    public async Task SendPasswordResetAsync(string toEmail, string resetLink)
+    // Email waits for a residence domain, so a missing key skips sending; admins can create reset links instead.
+    public async Task<bool> SendPasswordResetAsync(string toEmail, string resetLink)
     {
         var apiKey = configuration["Email:ApiKey"];
         var from = configuration["Email:From"];
 
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(from))
         {
-            throw new InvalidOperationException("Email configuration is missing.");
+            logger.LogWarning("Email is not configured, so the password reset email was not sent.");
+            return false;
         }
 
         var client = new SendGridClient(apiKey);
@@ -32,7 +34,10 @@ public class EmailService(IConfiguration configuration)
 
         if ((int)response.StatusCode < 200 || (int)response.StatusCode >= 300)
         {
-            throw new InvalidOperationException($"Failed to send email: {response.StatusCode}");
+            logger.LogError("SendGrid rejected the password reset email with status {Status}.", response.StatusCode);
+            return false;
         }
+
+        return true;
     }
 }
