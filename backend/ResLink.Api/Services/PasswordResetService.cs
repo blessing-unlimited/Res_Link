@@ -32,7 +32,12 @@ public class PasswordResetService(AppDbContext db, IConfiguration configuration)
         });
         await db.SaveChangesAsync();
 
+        // Render terminates HTTPS at its proxy, so the request scheme alone would give an http:// link.
         var baseUrl = configuration["App:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            baseUrl = Environment.GetEnvironmentVariable("RENDER_EXTERNAL_URL");
+        }
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
             baseUrl = $"{request.Scheme}://{request.Host}";
