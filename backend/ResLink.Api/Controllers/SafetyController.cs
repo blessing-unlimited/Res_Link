@@ -143,42 +143,40 @@ public class SafetyController(
             e.Longitude)).ToList());
     }
 
-[HttpPost("api/emergencies")]
-[Authorize(Roles = Roles.Student)]
-public async Task<IActionResult> Panic(CreateEmergencyRequest request)
-{
-    var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
-    var fallbackLocation = $"{user.Room ?? "Unknown room"}, {user.Residence?.Name ?? "Residence"}";
-
-    await db.Entry(user).Reference(u => u.Residence).LoadAsync();
-
-    var location = string.IsNullOrWhiteSpace(request.Location)
-        ? fallbackLocation
-        : request.Location.Trim();
-
-    db.EmergencyAlerts.Add(new EmergencyAlert
+    [HttpPost("api/emergencies")]
+    [Authorize(Roles = Roles.Student)]
+    public async Task<IActionResult> Panic(CreateEmergencyRequest request)
     {
-        Id = Guid.NewGuid(),
-        ReporterId = user.Id,
-        ResidenceId = user.ResidenceId ?? Guid.Empty,
-        Location = location,
-        Message = string.IsNullOrWhiteSpace(request.Message) ? "Panic button activated" : request.Message.Trim(),
-        Latitude = request.Latitude,
-        Longitude = request.Longitude,
-        Status = "Open"
-    });
+        var user = await db.Users.Include(u => u.Residence).FirstAsync(u => u.Id == current.UserId);
+        var fallbackLocation = $"{user.Room ?? "Unknown room"}, {user.Residence?.Name ?? "Residence"}";
 
-    await db.SaveChangesAsync();
+        var location = string.IsNullOrWhiteSpace(request.Location)
+            ? fallbackLocation
+            : request.Location.Trim();
 
-    await notifications.NotifyRoleAsync(
-        user.ResidenceId ?? Guid.Empty,
-        Roles.Security,
-        "Panic alert",
-        $"Open panic alert from {location}.",
-        "Emergency");
+        db.EmergencyAlerts.Add(new EmergencyAlert
+        {
+            Id = Guid.NewGuid(),
+            ReporterId = user.Id,
+            ResidenceId = user.ResidenceId ?? Guid.Empty,
+            Location = location,
+            Message = string.IsNullOrWhiteSpace(request.Message) ? "Panic button activated" : request.Message.Trim(),
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            Status = "Open"
+        });
 
-    return NoContent();
-}
+        await db.SaveChangesAsync();
+
+        await notifications.NotifyRoleAsync(
+            user.ResidenceId ?? Guid.Empty,
+            Roles.Security,
+            "Panic alert",
+            $"Open panic alert from {location}.",
+            "Emergency");
+
+        return NoContent();
+    }
 
     [HttpPut("api/emergencies/{id:guid}/status")]
     [Authorize(Roles = $"{Roles.Security},{Roles.Admin}")]

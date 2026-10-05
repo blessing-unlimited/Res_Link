@@ -717,7 +717,7 @@ async function groups(main) {
       <p class="small" style="color:var(--ink-2)">${esc(g.description)}</p>
       <div class="meta"><span>${icon("clock")}${esc(g.schedule)}</span><span>${icon("pin")}${esc(g.location)}</span></div>
       <div><div class="between small muted" style="margin-bottom:6px"><span>Members</span><span>${g.memberCount}/${g.maxMembers}</span></div><div class="progress"><i style="width:${Math.min(100, Math.round(g.memberCount / Math.max(1, g.maxMembers) * 100))}%"></i></div></div>
-      <div class="card-foot">${g.isMember ? `<span class="tag leaf dot">Member</span><button class="btn ghost sm leave" data-id="${g.id}">Leave</button>` : `<button class="btn wide join" data-id="${g.id}">Join group</button>`}</div>
+      <div class="card-foot">${g.isMember ? `<span class="tag leaf dot">Member</span><button class="btn ghost sm leave" data-id="${g.id}">Leave</button>` : g.memberCount >= g.maxMembers ? `<button class="btn wide" disabled>Group is full</button>` : `<button class="btn wide join" data-id="${g.id}">Join group</button>`}</div>
     </article>`).join("")}</div>` : emptyState(state.filter === "Mine" ? "You haven't joined a group yet" : "No study groups yet", "Create one and invite your classmates.", "groups")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; groups(main); });
   bindToggles(main, { "toggle-g": "g-box" });
@@ -990,7 +990,8 @@ async function rewards(main) {
         <div><h3>${esc(r.name)}</h3><p class="muted small" style="margin-top:4px">${esc(r.description)}</p></div>
         <div class="muted small">${r.stock} left · ${esc(r.category)}</div>
         ${student ? `<div class="card-foot" style="flex-direction:column;align-items:stretch">
-          ${need > 0 ? `<div class="progress"><i style="width:${pct}%"></i></div><button class="btn wide" disabled>${need} more points needed</button>`
+          ${r.stock <= 0 ? `<button class="btn wide" disabled>Out of stock</button>`
+            : need > 0 ? `<div class="progress"><i style="width:${pct}%"></i></div><button class="btn wide" disabled>${need} more points needed</button>`
             : `<button class="btn wide redeem" data-id="${r.id}" data-cost="${r.pointsCost}" data-name="${esc(r.name)}">Redeem</button>`}
         </div>` : ""}
       </article>`;
