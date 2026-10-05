@@ -3,6 +3,7 @@ using CloudinaryDotNet.Actions;
 
 namespace ResLink.Api.Services
 {
+    // Uploads go through the Cloudinary .NET SDK into a maintenance folder (Cloudinary, 2026).
     public class CloudinaryStorageService
     {
         private readonly Cloudinary? _cloudinary;

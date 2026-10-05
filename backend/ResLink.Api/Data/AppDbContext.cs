@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ResLink.Api.Domain;
 
 namespace ResLink.Api.Data;
@@ -86,5 +87,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // SQLite stores dates without a time zone, so read them back as UTC; otherwise the JSON has no "Z"
+        // and browsers treat the time as local, showing "2 h ago" for something just created (Microsoft, 2025c).
+        if (Database.IsSqlite())
+        {
+            var utc = new ValueConverter<DateTime, DateTime>(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+            var utcNullable = new ValueConverter<DateTime?, DateTime?>(v => v, v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+            foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetProperties()))
+            {
+                if (property.ClrType == typeof(DateTime))
+                {
+                    property.SetValueConverter(utc);
+                }
+                else if (property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(utcNullable);
+                }
+            }
+        }
     }
 }

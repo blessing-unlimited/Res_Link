@@ -57,13 +57,19 @@ public class CommunityController(
     [Authorize(Roles = Roles.Student)]
     public async Task<IActionResult> Join(Guid id)
     {
-        if (!await db.StudyGroups.AnyAsync(g => g.Id == id))
+        var group = await db.StudyGroups.Include(g => g.Members).FirstOrDefaultAsync(g => g.Id == id);
+        if (group is null)
         {
             return NotFound();
         }
 
-        if (!await db.StudyGroupMembers.AnyAsync(m => m.StudyGroupId == id && m.UserId == current.UserId))
+        if (!group.Members.Any(m => m.UserId == current.UserId))
         {
+            if (group.Members.Count >= group.MaxMembers)
+            {
+                return BadRequest("This study group is full.");
+            }
+
             db.StudyGroupMembers.Add(new StudyGroupMember { Id = Guid.NewGuid(), StudyGroupId = id, UserId = current.UserId });
             var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
             await points.AwardAsync(user, PointValues.StudyGroup);
@@ -129,6 +135,11 @@ public class CommunityController(
             return NotFound();
         }
 
+        if (reward.Stock <= 0)
+        {
+            return BadRequest("This reward is out of stock.");
+        }
+
         if (user.Points < reward.PointsCost)
         {
             return BadRequest("Not enough points to redeem this reward.");
@@ -137,11 +148,7 @@ public class CommunityController(
         var code = $"RSL-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
 
         user.Points -= reward.PointsCost;
-
-        if (reward.Stock > 0)
-        {
-            reward.Stock -= 1;
-        }
+        reward.Stock -= 1;
 
         var redemption = new Redemption
         {

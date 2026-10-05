@@ -426,8 +426,15 @@ fun userMessage(ex: Throwable): String {
             401 -> "Invalid credentials or access code."
             403 -> "Your role cannot use this action."
             409 -> "That email is already registered."
+            400 -> serverText(ex) ?: "Please check the details and try again."
             else -> "Request failed (${ex.code()})."
         }
         else -> ex.message ?: "Could not reach ResLink. Check your connection and try again."
     }
+}
+
+// The API sends short plain-text reasons for 400s; validation errors arrive as JSON and are not shown.
+private fun serverText(ex: HttpException): String? {
+    val text = runCatching { ex.response()?.errorBody()?.string() }.getOrNull()?.trim()
+    return text?.takeIf { it.isNotEmpty() && it.length <= 200 && !it.startsWith("{") }
 }

@@ -4,7 +4,7 @@ using Google.Apis.Auth.OAuth2;
 
 namespace ResLink.Api.Services;
 
-// (Firebase,2026; Firebase,2026a;Firebase,2026b; Firebase,2026c;)
+// Push notifications use the Firebase Admin SDK and Cloud Messaging (Firebase, 2026a; Firebase, 2026b; Firebase, 2026c).
 public class FirebasePushService
 {
     private readonly FirebaseMessaging? _messaging;

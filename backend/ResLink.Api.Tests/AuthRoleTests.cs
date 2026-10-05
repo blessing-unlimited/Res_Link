@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ResLink.Api.Contracts;
+using ResLink.Api.Data;
 
 namespace ResLink.Api.Tests;
 
@@ -272,6 +274,82 @@ public class AuthRoleTests
         var ticket = await client.PostAsJsonAsync("/api/maintenance",
             new CreateMaintenanceRequest("Dripping tap", "Bathroom tap drips", "Room B-204", "javascript:alert(1)", null, null));
         Assert.AreEqual(HttpStatusCode.BadRequest, ticket.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task New_Items_Report_Their_Time_In_Utc()
+    {
+        var client = await StudentClient();
+        var response = await client.PostAsJsonAsync("/api/posts", new CreatePostRequest("Time check", "Temporary post", null, false, null));
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var postId = json.RootElement.GetProperty("id").GetString();
+
+        var listJson = await client.GetStringAsync("/api/posts");
+        using var list = System.Text.Json.JsonDocument.Parse(listJson);
+        var createdAt = list.RootElement.EnumerateArray()
+            .First(p => p.GetProperty("id").GetString() == postId)
+            .GetProperty("createdAt").GetString()!;
+        StringAssert.EndsWith(createdAt, "Z");
+        var age = DateTime.UtcNow - DateTime.Parse(createdAt, null, System.Globalization.DateTimeStyles.AdjustToUniversal);
+        Assert.IsTrue(age.Duration() < TimeSpan.FromMinutes(5), $"createdAt was {createdAt}");
+    }
+
+    [TestMethod]
+    public async Task A_Full_Study_Group_Cannot_Be_Joined()
+    {
+        var client = await StudentClient();
+        var groups = await client.GetFromJsonAsync<List<StudyGroupDto>>("/api/study-groups");
+        var group = groups!.First(g => !g.IsMember);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var entity = await db.StudyGroups.FindAsync(group.Id);
+            entity!.MaxMembers = group.MemberCount;
+            await db.SaveChangesAsync();
+        }
+        var start = await Points(client);
+
+        var join = await client.PostAsync($"/api/study-groups/{group.Id}/join", null);
+        Assert.AreEqual(HttpStatusCode.BadRequest, join.StatusCode);
+        Assert.AreEqual("This study group is full.", await join.Content.ReadAsStringAsync());
+        Assert.AreEqual(start, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task A_Reward_With_No_Stock_Cannot_Be_Redeemed()
+    {
+        var client = await StudentClient();
+        var rewards = await client.GetFromJsonAsync<List<RewardDto>>("/api/rewards");
+        var reward = rewards!.OrderBy(r => r.PointsCost).First();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var entity = await db.Rewards.FindAsync(reward.Id);
+            entity!.Stock = 0;
+            var student = await db.Users.FirstAsync(u => u.Email == "student@reslink.app");
+            student.Points = reward.PointsCost;
+            await db.SaveChangesAsync();
+        }
+
+        var redeem = await client.PostAsync($"/api/rewards/{reward.Id}/redeem", null);
+        Assert.AreEqual(HttpStatusCode.BadRequest, redeem.StatusCode);
+        Assert.AreEqual("This reward is out of stock.", await redeem.Content.ReadAsStringAsync());
+        Assert.AreEqual(reward.PointsCost, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task A_Panic_Alert_Without_A_Location_Uses_The_Room_And_Residence()
+    {
+        var student = await StudentClient();
+        var panic = await student.PostAsJsonAsync("/api/emergencies", new CreateEmergencyRequest(null, null, null, null));
+        Assert.AreEqual(HttpStatusCode.NoContent, panic.StatusCode);
+
+        var security = _factory.CreateClient();
+        var auth = await Login(security, "security@reslink.app", "Security123!");
+        security.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+        var alerts = await security.GetFromJsonAsync<List<EmergencyAlertDto>>("/api/emergencies");
+        var latest = alerts!.OrderByDescending(a => a.CreatedAt).First();
+        Assert.AreEqual("A-214, Campus Flow Residence", latest.Location);
     }
 
     private async Task<HttpClient> StudentClient()

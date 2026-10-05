@@ -285,7 +285,7 @@ private fun RoleNavHost(
         composable("notifications") { NotificationsScreen(api) }
         composable("users") { UsersScreen(api) }
         composable("desk") { SecurityQueuesScreen(api) }
-        composable("profile") { ProfileScreen(session, onLogout) }
+        composable("profile") { ProfileScreen(api, session, onLogout) }
         composable("more") {
             MoreMenuScreen(role) { route -> nav.navigate(route) }
         }

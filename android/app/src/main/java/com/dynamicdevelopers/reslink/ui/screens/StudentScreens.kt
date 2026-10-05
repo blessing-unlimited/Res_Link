@@ -467,6 +467,7 @@ fun MaintenanceScreen(api: ResLinkApi, isStudent: Boolean, canUpdate: Boolean) {
         }
     }
 
+    // The camera app and the system photo picker need no storage permission (Android Developers, 2025e).
     val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
         val uri = cameraUri
         if (saved && uri != null) upload(uri)
@@ -569,6 +570,7 @@ fun MaintenanceScreen(api: ResLinkApi, isStudent: Boolean, canUpdate: Boolean) {
     }
 }
 
+// The fused location provider gives the last known position for the panic alert (Android Developers, 2025d).
 @Composable
 fun PanicScreen(api: ResLinkApi, session: SessionStore) {
     var sent by remember { mutableStateOf(false) }
@@ -761,22 +763,25 @@ fun RewardsScreen(api: ResLinkApi, session: SessionStore) {
     var rewards by remember { mutableStateOf(listOf<RewardDto>()) }
     var redemptions by remember { mutableStateOf(listOf<com.dynamicdevelopers.reslink.data.RedemptionDto>()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var points by remember { mutableStateOf(session.points()) }
     val scope = rememberCoroutineScope()
     fun reload() = scope.launch {
         rewards = runCatching { api.rewards() }.getOrDefault(emptyList())
         redemptions = runCatching { api.redemptions() }.getOrDefault(emptyList())
+        runCatching { api.profile() }.onSuccess { points = it.points; session.updatePoints(it.points) }
     }
     LaunchedEffect(Unit) { reload() }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             HeroCard {
-                HeroText("Rewards", "${session.points()} points", "Earn points by joining events and study groups, then swap them for vouchers.")
+                HeroText("Rewards", "$points points", "Earn points by joining events and study groups, then swap them for vouchers.")
             }
             ErrorText(error)
         }
         if (rewards.isNotEmpty()) item { SectionTitle("Available rewards") }
         items(rewards) { reward ->
-            val affordable = session.points() >= reward.pointsCost
+            val inStock = reward.stock > 0
+            val affordable = inStock && points >= reward.pointsCost
             ResCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(Icons.Outlined.CardGiftcard, Tints.Gold, 44.dp)
@@ -791,13 +796,19 @@ fun RewardsScreen(api: ResLinkApi, session: SessionStore) {
                         scope.launch {
                             try {
                                 api.redeem(reward.id)
-                                session.updatePoints(session.points() - reward.pointsCost)
                                 reload()
                             } catch (ex: Exception) {
                                 error = userMessage(ex)
                             }
                         }
-                    }) { Text(if (affordable) "Redeem" else "Not enough points", color = if (affordable) Forest else Muted, fontWeight = FontWeight.SemiBold) }
+                    }) {
+                        val label = when {
+                            !inStock -> "Out of stock"
+                            affordable -> "Redeem"
+                            else -> "Not enough points"
+                        }
+                        Text(label, color = if (affordable) Forest else Muted, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -856,7 +867,9 @@ fun StudyGroupsScreen(api: ResLinkApi) {
                     if (group.isMember) StatusChip("Member")
                 }
                 Text(group.description, color = InkSoft, modifier = Modifier.padding(top = 10.dp))
-                if (!group.isMember) {
+                if (!group.isMember && group.memberCount >= group.maxMembers) {
+                    Text("Group is full", color = Muted, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
+                } else if (!group.isMember) {
                     TextButton(onClick = { scope.launch { api.joinGroup(group.id); reload() } }) { Text("Join (+5 pts)", color = Forest, fontWeight = FontWeight.SemiBold) }
                 } else {
                     TextButton(onClick = { scope.launch { api.leaveGroup(group.id); reload() } }) { Text("Leave group", color = Muted) }
@@ -894,8 +907,12 @@ fun NotificationsScreen(api: ResLinkApi) {
 }
 
 @Composable
-fun ProfileScreen(session: SessionStore, onLogout: () -> Unit) {
+fun ProfileScreen(api: ResLinkApi, session: SessionStore, onLogout: () -> Unit) {
     val role = session.role() ?: ""
+    var points by remember { mutableStateOf(session.points()) }
+    LaunchedEffect(Unit) {
+        if (role == "Student") runCatching { api.profile() }.onSuccess { points = it.points; session.updatePoints(it.points) }
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ScreenPadding)) {
         ScreenHeader("Profile", "Your account at ${session.residenceName()}")
         ResCard {
@@ -913,7 +930,7 @@ fun ProfileScreen(session: SessionStore, onLogout: () -> Unit) {
         ResCard {
             ProfileRow(Icons.Outlined.Apartment, Tints.Leaf, "Residence", session.residenceName())
             if (session.room().isNotBlank()) ProfileRow(Icons.Outlined.MeetingRoom, Tints.Sky, "Room", session.room())
-            if (role == "Student") ProfileRow(Icons.Outlined.Star, Tints.Gold, "Reward points", "${session.points()}")
+            if (role == "Student") ProfileRow(Icons.Outlined.Star, Tints.Gold, "Reward points", "$points")
         }
         Spacer(Modifier.height(20.dp))
         ResOutlinedButton("Log out", color = Danger, onClick = onLogout)
