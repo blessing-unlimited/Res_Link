@@ -164,7 +164,15 @@ public record CreateRewardRequest(string Name, string Description, string Catego
 
 public record VisitorDto(Guid Id, string VisitorName, string HostName, string HostRoom, string Purpose, string Status, DateTime CreatedAt);
 public record CreateVisitorRequest(string VisitorName, string HostRoom, string Purpose);
-public record RedemptionDto(Guid Id, Guid RewardId, string RewardName, int PointsCost, DateTime CreatedAt);
+public record RedemptionDto(
+    Guid Id,
+    Guid RewardId,
+    string RewardName,
+    int PointsCost,
+    string VoucherCode,
+    bool IsUsed,
+    bool IsVoided,
+    DateTime CreatedAt);
 
 public record NotificationDto(Guid Id, string Title, string Body, string Type, bool IsRead, DateTime CreatedAt);
 

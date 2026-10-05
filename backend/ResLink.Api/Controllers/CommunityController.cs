@@ -103,8 +103,17 @@ public class CommunityController(
         var items = await db.Redemptions.Include(r => r.Reward)
             .Where(r => r.UserId == current.UserId)
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new RedemptionDto(r.Id, r.RewardId, r.Reward!.Name, r.Reward.PointsCost, r.CreatedAt))
+            .Select(r => new RedemptionDto(
+                r.Id,
+                r.RewardId,
+                r.Reward!.Name,
+                r.Reward.PointsCost,
+                r.VoucherCode,
+                r.IsUsed,
+                r.IsVoided,
+                r.CreatedAt))
             .ToListAsync();
+
         return Ok(items);
     }
 
@@ -114,6 +123,7 @@ public class CommunityController(
     {
         var reward = await db.Rewards.FirstOrDefaultAsync(r => r.Id == id);
         var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
+
         if (reward is null)
         {
             return NotFound();
@@ -124,11 +134,34 @@ public class CommunityController(
             return BadRequest("Not enough points to redeem this reward.");
         }
 
+        var code = $"RSL-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+
         user.Points -= reward.PointsCost;
-        if (reward.Stock > 0) reward.Stock -= 1;
-        db.Redemptions.Add(new Redemption { Id = Guid.NewGuid(), UserId = user.Id, RewardId = reward.Id });
+
+        if (reward.Stock > 0)
+        {
+            reward.Stock -= 1;
+        }
+
+        var redemption = new Redemption
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            RewardId = reward.Id,
+            VoucherCode = code,
+            IsUsed = false,
+            IsVoided = false
+        };
+
+        db.Redemptions.Add(redemption);
         await db.SaveChangesAsync();
-        return NoContent();
+
+        return Ok(new
+        {
+            voucherCode = redemption.VoucherCode,
+            rewardName = reward.Name,
+            pointsCost = reward.PointsCost
+        });
     }
 
     // Refunds points and restocks the catalogue so a redeem can be undone (Microsoft, 2025a).
@@ -151,6 +184,92 @@ public class CommunityController(
         }
 
         db.Redemptions.Remove(redemption);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpGet("api/rewards/redemptions/admin")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<IReadOnlyList<RedemptionAdminDto>>> AdminRedemptions()
+    {
+        var items = await db.Redemptions
+            .Include(r => r.User)
+            .Include(r => r.Reward)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new RedemptionAdminDto(
+                r.Id,
+                r.UserId,
+                r.User!.FullName,
+                r.RewardId,
+                r.Reward!.Name,
+                r.Reward.PointsCost,
+                r.VoucherCode,
+                r.IsUsed,
+                r.IsVoided,
+                r.CreatedAt))
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpPost("api/rewards/redemptions/{id:guid}/mark-used")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> MarkRedemptionUsed(Guid id)
+    {
+        var redemption = await db.Redemptions
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (redemption is null)
+        {
+            return NotFound();
+        }
+
+        if (redemption.IsUsed || redemption.IsVoided)
+        {
+            return BadRequest("This redemption is no longer active.");
+        }
+
+        redemption.IsUsed = true;
+        redemption.UsedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPost("api/rewards/redemptions/{id:guid}/void")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> VoidRedemption(Guid id)
+    {
+        var redemption = await db.Redemptions
+            .Include(r => r.Reward)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (redemption is null)
+        {
+            return NotFound();
+        }
+
+        if (redemption.IsVoided)
+        {
+            return BadRequest("This redemption has already been voided.");
+        }
+
+        if (redemption.IsUsed)
+        {
+            return BadRequest("A used redemption cannot be voided automatically.");
+        }
+
+        var user = await db.Users.FirstAsync(u => u.Id == redemption.UserId);
+        user.Points += redemption.Reward?.PointsCost ?? 0;
+
+        if (redemption.Reward is not null)
+        {
+            redemption.Reward.Stock += 1;
+        }
+
+        redemption.IsVoided = true;
+        redemption.VoidedAt = DateTime.UtcNow;
+
         await db.SaveChangesAsync();
         return NoContent();
     }
