@@ -525,82 +525,255 @@ async function security(main) {
 }
 
 async function rewards(main) {
-  const items = await api("/api/rewards");
-  const redemptions = state.user.role === "Student" ? await api("/api/rewards/redemptions").catch(() => []) : [];
-  const filtered = state.filter === "All" ? items : items.filter(r => r.category === state.filter);
-  main.innerHTML = `
+    const items = await api("/api/rewards");
+    const redemptions = state.user.role === "Student" ? await api("/api/rewards/redemptions").catch(() => []) : [];
+    const filtered = state.filter === "All" ? items : items.filter(r => r.category === state.filter);
+
+    main.innerHTML = `
     <div class="balance">
-      <div><small>Your reward balance</small><h1 style="margin:8px 0">${state.user.points} points</h1><p>Earn points by attending events, posting and helping others.</p></div>
-      <div class="row"><div class="metric"><b>${items.filter(r => state.user.points >= r.pointsCost).length}</b><div>Redeemable</div></div>
-      <div class="metric"><b>${items.length}</b><div>Total Rewards</div></div></div>
+      <div>
+        <small>Your reward balance</small>
+        <h1 style="margin:8px 0">${state.user.points} points</h1>
+        <p>Earn points by attending events, posting and helping others.</p>
+      </div>
+      <div class="row">
+        <div class="metric"><b>${items.filter(r => state.user.points >= r.pointsCost).length}</b><div>Redeemable</div></div>
+        <div class="metric"><b>${items.length}</b><div>Total Rewards</div></div>
+      </div>
     </div>
-    <div class="section-head"><h2>Reward Catalog</h2>${state.user.role === "Admin" ? `<button class="btn" id="toggle-r">+ Add Reward</button>` : ""}</div>
+
+    <div class="section-head">
+      <h2>Reward Catalog</h2>
+      ${state.user.role === "Admin" ? `<button class="btn" id="toggle-r">+ Add Reward</button>` : ""}
+    </div>
+
     <div class="card hidden mb" id="r-box">
-      <label>Name<input id="r-name" /></label><label>Description<input id="r-desc" /></label>
-      <label>Category<select id="r-cat"><option>Food</option><option>Merchandise</option><option>Services</option><option>Experiences</option><option>Discounts</option></select></label>
+      <label>Name<input id="r-name" /></label>
+      <label>Description<input id="r-desc" /></label>
+      <label>Category<select id="r-cat">
+        <option>Food</option>
+        <option>Merchandise</option>
+        <option>Services</option>
+        <option>Experiences</option>
+        <option>Discounts</option>
+      </select></label>
       <label>Points<input id="r-cost" type="number" value="50" /></label>
       <button class="btn" id="r-add">Add</button>
     </div>
-    <div class="pills">${["All", "Food", "Merchandise", "Services", "Experiences", "Discounts"].map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`).join("")}</div>
-    <div class="grid-3">${filtered.map(r => {
-      const need = r.pointsCost - state.user.points;
-      return `<div class="card"><div class="icon-box">${icon("rewards")}</div><h3>${esc(r.name)}</h3><p class="muted">${esc(r.description)}</p>
-        <p><span class="tag green">${r.pointsCost} pts</span> <span class="muted">${r.stock} left</span></p>
-        ${state.user.role === "Student" ? (need > 0 ? `<button class="btn wide" disabled>Need ${need} more pts</button>` : `<button class="btn wide redeem" data-id="${r.id}" data-cost="${r.pointsCost}">Redeem</button>`) : ""}
-      </div>`;
-    }).join("")}</div>
-    ${redemptions.length ? `<div class="section-head"><h2>Recent redemptions</h2></div>
-      ${redemptions.map(r => `<div class="card mb between"><div><b>${esc(r.rewardName)}</b><div class="muted">${r.pointsCost} pts · ${fmtDate(r.createdAt)}</div></div>
-      <button class="btn ghost undo-r" data-id="${r.id}" data-cost="${r.pointsCost}">Undo redeem</button></div>`).join("")}` : ""}`;
-  main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; rewards(main); });
-  const tr = document.getElementById("toggle-r"); if (tr) tr.onclick = () => document.getElementById("r-box").classList.toggle("hidden");
-  const ra = document.getElementById("r-add"); if (ra) ra.onclick = async () => {
-    await api("/api/rewards", { method: "POST", body: JSON.stringify({ name: val("r-name"), description: val("r-desc"), category: val("r-cat"), pointsCost: Number(val("r-cost")) }) });
-    rewards(main);
-  };
-  main.querySelectorAll(".redeem").forEach(el => el.onclick = async () => {
-    await api(`/api/rewards/${el.dataset.id}/redeem`, { method: "POST" });
-    state.user.points -= Number(el.dataset.cost); save(state.user); rewards(main);
-  });
-  main.querySelectorAll(".undo-r").forEach(el => el.onclick = async () => {
-    await api(`/api/rewards/redemptions/${el.dataset.id}/cancel`, { method: "POST" });
-    state.user.points += Number(el.dataset.cost); save(state.user); rewards(main);
-  });
+
+    <div class="pills">
+      ${["All", "Food", "Merchandise", "Services", "Experiences", "Discounts"]
+            .map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`)
+            .join("")}
+    </div>
+
+    <div class="grid-3">
+      ${filtered.map(r => {
+                const need = r.pointsCost - state.user.points;
+                return `
+          <div class="card">
+            <div class="icon-box">${icon("rewards")}</div>
+            <h3>${esc(r.name)}</h3>
+            <p class="muted">${esc(r.description)}</p>
+            <p>
+              <span class="tag green">${r.pointsCost} pts</span>
+              <span class="muted">${r.stock} left</span>
+            </p>
+            ${state.user.role === "Student" ? (
+                        need > 0
+                            ? `<button class="btn wide" disabled>Need ${need} more pts</button>`
+                            : `<button class="btn wide redeem" data-id="${r.id}" data-cost="${r.pointsCost}">Redeem</button>`
+                    ) : ""}
+          </div>
+        `;
+            }).join("")}
+    </div>
+
+    ${redemptions.length ? `
+      <div class="section-head"><h2>Recent redemptions</h2></div>
+      ${redemptions.map(r => `
+        <div class="card mb between">
+          <div>
+            <b>${esc(r.rewardName)}</b>
+            <div class="muted">
+              ${r.pointsCost} pts · ${esc(r.voucherCode)} ·
+              ${r.isUsed ? "Used" : r.isVoided ? "Voided" : "Pending"}
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    ` : ""}
+  `;
+
+    main.querySelectorAll("[data-filter]").forEach(b => {
+        b.onclick = () => {
+            state.filter = b.dataset.filter;
+            rewards(main);
+        };
+    });
+
+    const tr = document.getElementById("toggle-r");
+    if (tr) {
+        tr.onclick = () => document.getElementById("r-box").classList.toggle("hidden");
+    }
+
+    const ra = document.getElementById("r-add");
+    if (ra) {
+        ra.onclick = async () => {
+            await api("/api/rewards", {
+                method: "POST",
+                body: JSON.stringify({
+                    name: val("r-name"),
+                    description: val("r-desc"),
+                    category: val("r-cat"),
+                    pointsCost: Number(val("r-cost"))
+                })
+            });
+            rewards(main);
+        };
+    }
+
+    main.querySelectorAll(".redeem").forEach(el => {
+        el.onclick = async () => {
+            const result = await api(`/api/rewards/${el.dataset.id}/redeem`, { method: "POST" });
+
+            state.user.points -= Number(el.dataset.cost);
+            save(state.user);
+
+            alert(`Reward redeemed. Use this voucher code: ${result.voucherCode}`);
+
+            rewards(main);
+        };
+    });
 }
 
 async function admin(main) {
-  const users = await api("/api/admin/users");
-  const analytics = await api("/api/admin/analytics");
-  const posts = await api("/api/posts");
-  const events = await api("/api/events");
-  const market = await api("/api/marketplace");
-  const rewards = await api("/api/rewards");
-  const tab = state.tab === "residents" || state.tab === "announcements" ? state.tab : "overview";
-  main.innerHTML = `
-    <div class="page-head"><div><h1>Admin Panel</h1><p>Manage your residence community.</p></div></div>
+    const users = await api("/api/admin/users");
+    const analytics = await api("/api/admin/analytics");
+    const posts = await api("/api/posts");
+    const events = await api("/api/events");
+    const market = await api("/api/marketplace");
+    const rewards = await api("/api/rewards");
+    const redemptionAdmin = await api("/api/rewards/redemptions/admin");
+
+    const tab = state.tab === "residents" || state.tab === "announcements" || state.tab === "redemptions"
+        ? state.tab
+        : "overview";
+
+    main.innerHTML = `
+    <div class="page-head">
+      <div><h1>Admin Panel</h1><p>Manage your residence community.</p></div>
+    </div>
+
     <div class="pills">
       <button class="pill ${tab === "overview" ? "active" : ""}" data-tab="overview">Overview</button>
       <button class="pill ${tab === "residents" ? "active" : ""}" data-tab="residents">Residents</button>
       <button class="pill ${tab === "announcements" ? "active" : ""}" data-tab="announcements">Announcements</button>
+      <button class="pill ${tab === "redemptions" ? "active" : ""}" data-tab="redemptions">Redemptions</button>
     </div>
-    ${tab === "overview" ? `<div class="admin-metrics">
-      ${metric("Total Residents", analytics.students, "groups")}
-      ${metric("Maintenance Requests", analytics.openTickets, "maintenance")}
-      ${metric("Events Created", events.length, "events")}
-      ${metric("Community Posts", posts.length, "community")}
-      ${metric("Marketplace Listings", market.length, "market")}
-      ${metric("Active Rewards", rewards.length, "rewards")}
-    </div>` : tab === "residents" ? users.map(u => `<div class="card mb between"><div><b>${esc(u.fullName)}</b><div class="muted">${esc(u.email)}${u.room ? " · Room " + esc(u.room) : ""}</div></div>
-      <div><span class="tag ${tagClass(u.role)}">${esc(u.isActive ? u.role : "Inactive")}</span>
-      <button class="btn ghost act" data-id="${u.id}" data-on="${u.isActive}">${u.isActive ? "Deactivate" : "Activate"}</button></div></div>`).join("")
-      : `<div class="card mb"><textarea id="a-body" placeholder="Write an announcement"></textarea><p><button class="btn" id="a-post">Post announcement</button></p></div>
-        ${posts.filter(p => p.kind === "Announcement").map(p => `<div class="card mb"><b>${esc(p.title)}</b><p>${esc(p.body)}</p></div>`).join("")}`}`;
-  main.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { state.tab = b.dataset.tab; admin(main); });
-  main.querySelectorAll(".act").forEach(el => el.onclick = async () => { await api(`/api/admin/users/${el.dataset.id}/active`, { method: "PUT", body: JSON.stringify({ isActive: el.dataset.on !== "true" }) }); admin(main); });
-  const ap = document.getElementById("a-post"); if (ap) ap.onclick = async () => {
-    await api("/api/posts", { method: "POST", body: JSON.stringify({ title: "Announcement", body: val("a-body"), kind: "Announcement", isPoll: false }) });
-    admin(main);
-  };
+
+    ${tab === "overview" ? `
+      <div class="admin-metrics">
+        ${metric("Total Residents", analytics.students, "groups")}
+        ${metric("Maintenance Requests", analytics.openTickets, "maintenance")}
+        ${metric("Events Created", events.length, "events")}
+        ${metric("Community Posts", posts.length, "community")}
+        ${metric("Marketplace Listings", market.length, "market")}
+        ${metric("Active Rewards", rewards.length, "rewards")}
+      </div>
+    ` : tab === "residents" ? `
+      ${users.map(u => `
+        <div class="card mb between">
+          <div>
+            <b>${esc(u.fullName)}</b>
+            <div class="muted">${esc(u.email)}${u.room ? " · Room " + esc(u.room) : ""}</div>
+          </div>
+          <div>
+            <span class="tag ${tagClass(u.role)}">${esc(u.isActive ? u.role : "Inactive")}</span>
+            <button class="btn ghost act" data-id="${u.id}" data-on="${u.isActive}">
+              ${u.isActive ? "Deactivate" : "Activate"}
+            </button>
+          </div>
+        </div>
+      `).join("")}
+    ` : tab === "announcements" ? `
+      <div class="card mb">
+        <textarea id="a-body" placeholder="Write an announcement"></textarea>
+        <p><button class="btn" id="a-post">Post announcement</button></p>
+      </div>
+      ${posts.filter(p => p.kind === "Announcement").map(p => `
+        <div class="card mb">
+          <b>${esc(p.title)}</b>
+          <p>${esc(p.body)}</p>
+        </div>
+      `).join("")}
+    ` : `
+      <div class="section-head"><h2>Reward redemptions</h2></div>
+
+      ${redemptionAdmin.length ? redemptionAdmin.map(r => `
+        <div class="card mb between">
+          <div>
+            <b>${esc(r.userName)}</b>
+            <div class="muted">
+              ${esc(r.rewardName)} · ${esc(r.voucherCode)} · ${r.pointsCost} pts
+            </div>
+          </div>
+          <div>
+            ${!r.isUsed && !r.isVoided ? `<button class="btn mark-used" data-id="${r.id}">Mark used</button>` : ""}
+            ${!r.isUsed && !r.isVoided ? `<button class="btn ghost void-redemption" data-id="${r.id}">Void code</button>` : ""}
+            ${r.isUsed ? `<span class="tag green">Used</span>` : r.isVoided ? `<span class="tag red">Voided</span>` : `<span class="tag">Pending</span>`}
+          </div>
+        </div>
+      `).join("") : `<div class="empty">No reward redemptions yet.</div>`}
+    `}
+  `;
+
+    main.querySelectorAll("[data-tab]").forEach(b => {
+        b.onclick = () => {
+            state.tab = b.dataset.tab;
+            admin(main);
+        };
+    });
+
+    main.querySelectorAll(".act").forEach(el => {
+        el.onclick = async () => {
+            await api(`/api/admin/users/${el.dataset.id}/active`, {
+                method: "PUT",
+                body: JSON.stringify({ isActive: el.dataset.on !== "true" })
+            });
+            admin(main);
+        };
+    });
+
+    const ap = document.getElementById("a-post");
+    if (ap) {
+        ap.onclick = async () => {
+            await api("/api/posts", {
+                method: "POST",
+                body: JSON.stringify({
+                    title: "Announcement",
+                    body: val("a-body"),
+                    kind: "Announcement",
+                    isPoll: false
+                })
+            });
+            admin(main);
+        };
+    }
+
+    main.querySelectorAll(".mark-used").forEach(el => {
+        el.onclick = async () => {
+            await api(`/api/rewards/redemptions/${el.dataset.id}/mark-used`, { method: "POST" });
+            admin(main);
+        };
+    });
+
+    main.querySelectorAll(".void-redemption").forEach(el => {
+        el.onclick = async () => {
+            await api(`/api/rewards/redemptions/${el.dataset.id}/void`, { method: "POST" });
+            admin(main);
+        };
+    });
 }
 const metric = (label, n, name) => `<div class="card"><div class="icon-box">${icon(name)}</div><b>${n}</b><div class="muted">${label}</div></div>`;
 

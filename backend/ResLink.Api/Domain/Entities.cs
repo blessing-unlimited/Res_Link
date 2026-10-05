@@ -214,8 +214,27 @@ public class Redemption
     public AppUser? User { get; set; }
     public Guid RewardId { get; set; }
     public Reward? Reward { get; set; }
+
+    public string VoucherCode { get; set; } = string.Empty;
+    public bool IsUsed { get; set; }
+    public bool IsVoided { get; set; }
+    public DateTime? UsedAt { get; set; }
+    public DateTime? VoidedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+public record RedemptionAdminDto(
+    Guid Id,
+    Guid UserId,
+    string UserName,
+    Guid RewardId,
+    string RewardName,
+    int PointsCost,
+    string VoucherCode,
+    bool IsUsed,
+    bool IsVoided,
+    DateTime CreatedAt);
 
 public class AppNotification
 {
