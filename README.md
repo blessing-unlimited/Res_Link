@@ -174,6 +174,15 @@ The API in this repository already signs users in, checks roles, and stores demo
 
 Do not put passwords, API keys, or card numbers in Git. Set them in the Render dashboard under **Environment** (Render, 2025).
 
+### Hosting on Render
+
+The live app is a Render web service built from this repository (`blessing-unlimited/Res_Link`). `render.yaml` describes it: Docker, the free plan, and the Frankfurt region, the same as the Neon database (Render, 2025).
+
+1. On Render, choose **New > Blueprint** and connect `blessing-unlimited/Res_Link`. A repository owner may have to approve the Render GitHub app first.
+2. Render reads `render.yaml`, creates the `reslink` service, and generates `Jwt__Key` itself.
+3. When it asks for the other values, set `Staff__AccessCode`. The Cloudinary and Firebase values can stay empty until those accounts exist. Add `DATABASE_URL` only when the live data should move to Neon (step 1 below).
+4. Each push to `main` redeploys the service. Password reset links use the service's own address automatically.
+
 ### 1. Keep data after the host restarts
 
 Without a database URL, the service writes SQLite under `/tmp/reslink`. Render’s free disk is wiped when the service sleeps, so the app loads the demo accounts again. The live data is kept in a Neon PostgreSQL database instead, because Neon’s free plan does not expire the way Render’s free PostgreSQL does (Neon, 2026; Render, 2026).
@@ -188,24 +197,23 @@ The API is already set up for this. When `DATABASE_URL` is set it uses PostgreSQ
 
 ### 2. Move secrets out of the repository
 
-`appsettings.json` currently holds the JWT signing key and the staff access code so the demo can run. A real venue must rotate those values and keep them only on the server (OWASP, 2023).
+`appsettings.json` keeps the JWT signing key and the staff access code empty. Local runs generate a temporary key and use the demo staff code from `appsettings.Development.json`. The hosted app refuses to start without a JWT key, so the values live only on the server (OWASP, 2023).
 
-1. Generate a new random string of at least 32 characters for the JWT key.
-2. On Render, set `Jwt__Key`, `Jwt__Issuer` (`ResLink.Api`), `Jwt__Audience` (`ResLink.Android`), and `Staff__AccessCode` to a new code that is not `RESLINK-STAFF-2026`.
-3. Remove the real values from `appsettings.json` before the next public commit. Leave empty placeholders.
-4. Redeploy. Old demo tokens will stop working, which is expected. Sign in again.
-5. Share the new staff code only with residence staff.
+1. Render generates `Jwt__Key` from `render.yaml`. To rotate it, choose **Generate** next to it under **Environment**.
+2. Before a real venue uses the app, change `Staff__AccessCode` on Render to a new code that is not `RESLINK-STAFF-2026`.
+3. Redeploy. Old tokens stop working after a key change, which is expected. Sign in again.
+4. Share the staff code only with residence staff.
 
 ### 3. Store maintenance photos
 
 Students can type a photo URL. A real report needs a picture taken on the phone and stored in cloud storage, not on the Render disk.
 
-1. Create a storage bucket (Cloudflare R2, Azure Blob, or Amazon S3).
-2. Create an access key that can upload and read objects in that bucket only.
-3. Add `Storage__Account`, `Storage__Key`, and `Storage__Bucket` on Render.
-4. Add an endpoint `POST /api/maintenance/photos` that accepts one image, checks the file is a JPEG or PNG under 5 MB, uploads it, and returns the URL.
-5. Point the maintenance form at that endpoint instead of the free-text photo URL field.
-6. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
+The API already has a Cloudinary upload service and `POST /api/maintenance/photos`, which accepts one JPEG or PNG under 5 MB and returns its URL.
+
+1. Create a free Cloudinary account and copy the cloud name, API key, and API secret from the dashboard.
+2. Add `Cloudinary__CloudName`, `Cloudinary__ApiKey`, and `Cloudinary__ApiSecret` on Render.
+3. Point the maintenance forms at the photo endpoint instead of the free-text photo URL field.
+4. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
 
 ### 4. Tell staff when something happens
 
