@@ -159,7 +159,7 @@ Build a small separate site (one page is enough) that explains ResLink to someon
 
 Include:
 
-- the ResLink logo (`reslink.jpeg` in this repository)
+- the ResLink logo (`docs/brand/`: `lockup.png` on dark backgrounds, `horizontal-ink.png` on light ones)
 - the line “Find. Connect. Live.”
 - who it is for: students, admin, security, maintenance
 - four short blocks: community, events, safety, maintenance
