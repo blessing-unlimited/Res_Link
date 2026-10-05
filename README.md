@@ -165,7 +165,9 @@ Include:
 - the live app link: [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com)
 - the team names: Sihle, Thami, and Blessing
 
-Host the page on GitHub Pages or any free static host, and paste the URL under this heading when it is live.
+**Live site:** [https://reslink-infographic.onrender.com](https://reslink-infographic.onrender.com)
+
+The page is `docs/index.html`. Render hosts it as a free static site defined in `render.yaml`, and it updates whenever a change to `docs/` reaches `main`.
 
 ## Blessing's work
 

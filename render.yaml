@@ -24,3 +24,12 @@ services:
         sync: false
       - key: Firebase__ServiceAccountJson
         sync: false
+
+  - type: web
+    name: reslink-infographic
+    runtime: static
+    buildCommand: echo "Static site, nothing to build"
+    staticPublishPath: ./docs
+    buildFilter:
+      paths:
+        - docs/**
