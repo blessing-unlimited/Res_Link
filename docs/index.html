@@ -499,6 +499,73 @@
 
         .cta p { color: var(--on-dark-muted); max-width: 520px; }
 
+        /* Presentation video */
+        .video-card {
+            position: relative;
+            display: block;
+            max-width: 960px;
+            margin: 0 auto;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            background: var(--brand-950);
+            box-shadow: var(--shadow-md);
+            aspect-ratio: 16 / 9;
+        }
+
+        .video-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+        .video-card .play {
+            position: absolute;
+            left: 50%;
+            bottom: 6%;
+            transform: translateX(-50%);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: clamp(0.45rem, 1.5vw, 0.75rem) clamp(0.9rem, 3vw, 1.4rem);
+            border-radius: 999px;
+            background: #ffffff;
+            color: var(--brand-950);
+            font-size: clamp(0.8rem, 2.4vw, 1rem);
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: var(--shadow-md);
+            transition: transform 0.2s ease;
+        }
+
+        .video-card:hover .play, .video-card:focus-visible .play { transform: translateX(-50%) scale(1.05); }
+
+        .chapters {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .chapter {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 1rem 0.5rem 0.5rem;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: var(--surface);
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .chapter .avatar { width: 32px; height: 32px; font-size: 0.85rem; }
+        .chapter time { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+        .video-note {
+            margin-top: 1.25rem;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .video-note a { color: var(--leaf); font-weight: 600; }
+
         /* Team Section */
         .group-name {
             display: inline-flex;
@@ -700,6 +767,7 @@
                 <ul class="nav-links">
                     <li><a href="#audience">Who it's for</a></li>
                     <li><a href="#pillars">Features</a></li>
+                    <li><a href="#presentation">Presentation</a></li>
                     <li><a href="#team">Team</a></li>
                 </ul>
             </nav>
@@ -724,7 +792,9 @@
                         <a href="https://reslink-zkca.onrender.com" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
                             Open the live app <i data-lucide="arrow-right"></i>
                         </a>
-                        <a href="#pillars" class="btn btn-ghost">See what it does</a>
+                        <a href="#presentation" class="btn btn-ghost">
+                            <i data-lucide="circle-play"></i> Watch the presentation
+                        </a>
                     </div>
                     <p class="hero-note"><i data-lucide="clock"></i>The free host can take about a minute to wake up on the first visit.</p>
                 </div>
@@ -839,6 +909,31 @@
                         <p>Transparent maintenance ticketing system allowing fast fault logging, photo attachments, and prompt resolution tracking.</p>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Group presentation -->
+        <section class="section" id="presentation">
+            <div class="container text-center">
+                <div class="section-title">Group Presentation</div>
+                <h2 class="section-heading">Watch Our Presentation</h2>
+                <p class="section-desc">Thami, Sihle and Blessing each present the part of ResLink they built, in one video of about 40 minutes.</p>
+
+                <a class="video-card" href="https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video" target="_blank" rel="noopener noreferrer" aria-label="Open the presentation video on GitHub">
+                    <img src="brand/video-poster.jpg" alt="" width="1280" height="720" loading="lazy">
+                    <span class="play"><i data-lucide="play"></i>Watch on GitHub</span>
+                </a>
+
+                <div class="chapters" aria-label="Where each presenter starts">
+                    <span class="chapter"><span class="avatar t-plum">T</span>Thami <time>0:03</time></span>
+                    <span class="chapter"><span class="avatar t-leaf">S</span>Sihle <time>5:28</time></span>
+                    <span class="chapter"><span class="avatar t-sky">B</span>Blessing <time>17:01</time></span>
+                </div>
+
+                <p class="video-note">
+                    The video is on the project's GitHub release. Sign in with an account that has access to the repository,
+                    then open <b>ResLink-Presentation.mp4</b> to watch it.
+                </p>
             </div>
         </section>
 

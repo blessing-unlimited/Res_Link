@@ -8,6 +8,8 @@ A student-residence app by **Dynamic Developers** (INSY72315).
 
 **Project infographic:** [https://reslink-infographic-zkca.onrender.com](https://reslink-infographic-zkca.onrender.com)
 
+**Group presentation video:** [ResLink-Presentation.mp4 on the GitHub release](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video). It is about 40 minutes long: Thami starts at 0:03, Sihle at 5:28 and Blessing at 17:01. Download the file from the release page; it plays in any browser or media player.
+
 The first visit can take about a minute while the free host wakes up. Then sign in with one of the demo accounts:
 
 | Role | Email | Password |
@@ -23,10 +25,11 @@ The same API and accounts work in a local browser or in Android Studio. The Andr
 
 ## What the lecturer can mark
 
-1. Open [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com) or run the app locally (steps below).
-2. Sign in with each demo account and follow the walkthrough.
-3. Run `dotnet test ResLink.sln` from the repository root.
-4. API documentation is at [https://reslink-zkca.onrender.com/swagger](https://reslink-zkca.onrender.com/swagger) or `http://localhost:5180/swagger`.
+1. Watch the [group presentation video](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video).
+2. Open [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com) or run the app locally (steps below).
+3. Sign in with each demo account and follow the walkthrough.
+4. Run `dotnet test ResLink.sln` from the repository root.
+5. API documentation is at [https://reslink-zkca.onrender.com/swagger](https://reslink-zkca.onrender.com/swagger) or `http://localhost:5180/swagger`.
 
 ResLink is one app for students, residence administrators, security, and maintenance. Each role has its own sign-up path, home screen, and permissions. The browser uses the house-and-chain logo, Plus Jakarta Sans type, and a dark green (#04180f) sidebar that matches the logo background. Each feature has its own colour, and the account role sits under the person's name. Event cards use stock photos. On a tablet the sidebar shrinks to icons, and on a phone the menu moves to a bottom bar. The Android app uses the same colours, with a dark side rail on tablets.
 
@@ -222,7 +225,7 @@ In the Meet the Team section, hovering over (or tabbing to) a name shows that me
 
 ### Group video
 
-- Recorded her part of the group video, explaining the work she contributed. Each member records their own part, and the parts are joined into one video for the submission.
+- Recorded her part of the group video, explaining the work she contributed. Each member recorded their own part, and the parts were joined into one [presentation video](https://github.com/blessing-unlimited/Res_Link/releases/tag/presentation-video) with a ResLink intro and outro.
 
 ## Blessing's work
 
