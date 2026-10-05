@@ -66,7 +66,7 @@ public class EventsController(
 
         var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
         db.Rsvps.Add(new EventRsvp { Id = Guid.NewGuid(), EventId = id, UserId = user.Id });
-        await points.AwardAsync(user, 10);
+        await points.AwardAsync(user, PointValues.Rsvp);
         await notifications.NotifyRoleAsync(user.ResidenceId ?? Guid.Empty, Roles.Admin, "New RSVP",
             $"{user.FullName} RSVP'd to {ev.Title}.", "Event");
         return NoContent();
@@ -80,7 +80,7 @@ public class EventsController(
         if (rsvp is not null)
         {
             db.Rsvps.Remove(rsvp);
-            await db.SaveChangesAsync();
+            await points.DeductAsync(current.UserId, PointValues.Rsvp);
         }
 
         return NoContent();

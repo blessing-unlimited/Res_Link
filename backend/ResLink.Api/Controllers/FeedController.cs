@@ -47,7 +47,7 @@ public class FeedController(AppDbContext db, CurrentUser current, PointsService 
                 : null
         };
         db.Posts.Add(post);
-        await points.AwardAsync(user, 5);
+        await points.AwardAsync(user, PointValues.Post);
         await db.Entry(post).Reference(p => p.Author).LoadAsync();
         return Ok(DtoMapper.ToPost(post));
     }
@@ -104,7 +104,7 @@ public class FeedController(AppDbContext db, CurrentUser current, PointsService 
         return NoContent();
     }
 
-    // Admin can moderate any post; students can remove only their own (Microsoft, 2025e).
+    // Admin can moderate any post; students can remove only their own. Either way the author loses the posting points (Microsoft, 2025e).
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = $"{Roles.Student},{Roles.Admin}")]
     public async Task<IActionResult> Delete(Guid id)
@@ -121,7 +121,7 @@ public class FeedController(AppDbContext db, CurrentUser current, PointsService 
         }
 
         db.Posts.Remove(post);
-        await db.SaveChangesAsync();
+        await points.DeductAsync(post.AuthorId, PointValues.Post);
         return NoContent();
     }
 }

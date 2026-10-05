@@ -74,11 +74,37 @@ public class NotificationService(AppDbContext db,FirebasePushService push)
     }
 }
 
+public static class PointValues
+{
+    public const int Post = 5;
+    public const int Rsvp = 10;
+    public const int StudyGroup = 5;
+    public const int MaintenanceTicket = 8;
+    public const int NoiseComplaint = 8;
+}
+
 public class PointsService(AppDbContext db)
 {
     public async Task AwardAsync(AppUser user, int points)
     {
         user.Points += points;
+        await db.SaveChangesAsync();
+    }
+
+    public Task AwardAsync(Guid userId, int points) => AdjustAsync(userId, points);
+
+    // Undoing an action takes back exactly what it earned. The balance is not floored at zero,
+    // otherwise earning, redeeming and then undoing would still leave the student with free points.
+    public Task DeductAsync(Guid userId, int points) => AdjustAsync(userId, -points);
+
+    private async Task AdjustAsync(Guid userId, int delta)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is not null)
+        {
+            user.Points += delta;
+        }
+
         await db.SaveChangesAsync();
     }
 }

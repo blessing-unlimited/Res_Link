@@ -16,7 +16,7 @@ public class CommunityController(
     CurrentUser current,
     PointsService points) : ControllerBase
 {
-    // Study groups can be joined and left; a redeemed reward can only be voided by an admin (Microsoft, 2025a).
+    // Study groups can be joined and left, and leaving takes back the joining points; a redeemed reward can only be voided by an admin (Microsoft, 2025a).
     [HttpGet("api/study-groups")]
     [Authorize(Roles = $"{Roles.Student},{Roles.Admin}")]
     public async Task<ActionResult<IReadOnlyList<StudyGroupDto>>> Groups()
@@ -48,7 +48,7 @@ public class CommunityController(
         };
         db.StudyGroups.Add(group);
         db.StudyGroupMembers.Add(new StudyGroupMember { Id = Guid.NewGuid(), StudyGroupId = group.Id, UserId = user.Id });
-        await points.AwardAsync(user, 5);
+        await points.AwardAsync(user, PointValues.StudyGroup);
         return Ok(new StudyGroupDto(group.Id, group.Name, group.Topic, group.CourseCode, group.Description,
             group.Schedule, group.Location, 1, group.MaxMembers, true, group.CreatedAt));
     }
@@ -66,7 +66,7 @@ public class CommunityController(
         {
             db.StudyGroupMembers.Add(new StudyGroupMember { Id = Guid.NewGuid(), StudyGroupId = id, UserId = current.UserId });
             var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
-            await points.AwardAsync(user, 5);
+            await points.AwardAsync(user, PointValues.StudyGroup);
         }
 
         return NoContent();
@@ -80,7 +80,7 @@ public class CommunityController(
         if (member is not null)
         {
             db.StudyGroupMembers.Remove(member);
-            await db.SaveChangesAsync();
+            await points.DeductAsync(current.UserId, PointValues.StudyGroup);
         }
 
         return NoContent();

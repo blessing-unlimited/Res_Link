@@ -50,7 +50,7 @@ public class SafetyController(
             IsAnonymous = request.IsAnonymous,
             Status = "Open"
         });
-        await points.AwardAsync(user, 8);
+        await points.AwardAsync(user, PointValues.NoiseComplaint);
         await notifications.NotifyRoleAsync(user.ResidenceId ?? Guid.Empty, Roles.Security, "Noise complaint",
             $"New complaint at {request.Location}.", "Noise");
         return NoContent();
@@ -66,9 +66,26 @@ public class SafetyController(
             return NotFound();
         }
 
+        var wasWithdrawn = item.Status == "Withdrawn";
+        var isWithdrawn = request.Status == "Withdrawn";
         item.Status = request.Status;
         item.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        if (item.ReporterId is { } reporterId && wasWithdrawn != isWithdrawn)
+        {
+            if (isWithdrawn)
+            {
+                await points.DeductAsync(reporterId, PointValues.NoiseComplaint);
+            }
+            else
+            {
+                await points.AwardAsync(reporterId, PointValues.NoiseComplaint);
+            }
+        }
+        else
+        {
+            await db.SaveChangesAsync();
+        }
+
         return NoContent();
     }
 
@@ -95,9 +112,14 @@ public class SafetyController(
             return NotFound();
         }
 
+        if (item.Status == "Withdrawn")
+        {
+            return NoContent();
+        }
+
         item.Status = "Withdrawn";
         item.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await points.DeductAsync(current.UserId, PointValues.NoiseComplaint);
         return NoContent();
     }
 

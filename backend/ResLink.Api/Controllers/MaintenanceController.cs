@@ -37,6 +37,13 @@ public class MaintenanceController(
     [Authorize(Roles = Roles.Student)]
     public async Task<ActionResult<MaintenanceTicketDto>> Create(CreateMaintenanceRequest request)
     {
+        var photoUrl = string.IsNullOrWhiteSpace(request.PhotoUrl) ? null : request.PhotoUrl.Trim();
+        if (photoUrl is not null && !photoUrl.StartsWith("/api/maintenance/photos/", StringComparison.Ordinal)
+            && !photoUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("The photo must be uploaded through the app.");
+        }
+
         var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
         var ticket = new MaintenanceTicket
         {
@@ -48,11 +55,11 @@ public class MaintenanceController(
             Location = request.Location.Trim(),
             Category = string.IsNullOrWhiteSpace(request.Category) ? "General" : request.Category.Trim(),
             Priority = string.IsNullOrWhiteSpace(request.Priority) ? "Medium" : request.Priority.Trim(),
-            PhotoUrl = request.PhotoUrl,
+            PhotoUrl = photoUrl,
             Status = TicketStatuses.Open
         };
         db.MaintenanceTickets.Add(ticket);
-        await points.AwardAsync(user, 8);
+        await points.AwardAsync(user, PointValues.MaintenanceTicket);
         await notifications.NotifyRoleAsync(user.ResidenceId ?? Guid.Empty, Roles.Maintenance, "New ticket",
             $"{ticket.Title} reported in {ticket.Location}.", "Maintenance");
         ticket.Reporter = user;
@@ -79,6 +86,8 @@ public class MaintenanceController(
             }
         }
 
+        var wasCancelled = ticket.Status == TicketStatuses.Cancelled;
+        var isCancelled = request.Status == TicketStatuses.Cancelled;
         ticket.Status = request.Status;
         ticket.ResolutionNotes = request.ResolutionNotes;
         ticket.UpdatedAt = DateTime.UtcNow;
@@ -87,7 +96,19 @@ public class MaintenanceController(
             ticket.AssignedToId = current.UserId;
         }
 
-        await db.SaveChangesAsync();
+        if (!wasCancelled && isCancelled)
+        {
+            await points.DeductAsync(ticket.ReporterId, PointValues.MaintenanceTicket);
+        }
+        else if (wasCancelled && !isCancelled)
+        {
+            await points.AwardAsync(ticket.ReporterId, PointValues.MaintenanceTicket);
+        }
+        else
+        {
+            await db.SaveChangesAsync();
+        }
+
         await notifications.NotifyAsync(ticket.ReporterId, "Ticket update",
             $"{ticket.Title} is now {ticket.Status}.", "Maintenance");
         return NoContent();

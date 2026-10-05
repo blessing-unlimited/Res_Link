@@ -203,7 +203,7 @@ fun StatusChip(text: String, tint: Tint = tintFor(text)) {
     ) {
         Box(Modifier.size(6.dp).clip(CircleShape).background(tint.fg))
         Spacer(Modifier.size(6.dp))
-        Text(prettyStatus(text), color = tint.fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(prettyStatus(text), color = tint.fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
     }
 }
 

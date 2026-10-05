@@ -46,7 +46,7 @@ ResLink is built by **Dynamic Developers**.
 
 | Member | GitHub | Contribution |
 | --- | --- | --- |
-| Sihle | [@Sihl3s](https://github.com/Sihl3s) | Infrastructure and operations: Docker and Render hosting, the live URL, JWT session handling when the host restarts, the browser app (logo, layout, role label, event photos), and this run guide. |
+| Sihle | [@Sihl3s](https://github.com/Sihl3s) | The first working prototype, hosting and data (Docker, Render, Neon), the web and Android redesigns, password reset, bug fixes from group testing, the automated tests, hosting the infographic, and this run guide. See Sihle's work below. |
 | Thami (Nomathamsanqa) | [@NomathamsanqaTame](https://github.com/NomathamsanqaTame) | A screen recording of the app, and a separate website that presents the project as an infographic. See Thami's work below. |
 | Blessing | [@blessing-unlimited](https://github.com/blessing-unlimited) | Backend lead. The API, roles, and demo data are in this repository. The steps still required for a real residence are written out below as Blessing's work. |
 
@@ -75,6 +75,8 @@ That page is the ResLink app (sign-in, role dashboards, and all features).
 API documentation remains available at [http://localhost:5180/swagger](http://localhost:5180/swagger).
 
 Leave this terminal open while you use the app.
+
+Local runs create `backend/ResLink.Api/reslink.db` the first time and never change it afterwards. If you ran an older version and something like photo upload fails, stop the API, delete `reslink.db`, and start it again to get a fresh database with the demo accounts.
 
 ### 2. Run the Android application (optional)
 
@@ -118,7 +120,7 @@ After login, the API returns a JWT that includes the user’s role. The browser 
 
 ## Suggested walkthrough for marking
 
-1. **Student** (`student@reslink.app`): open Home, Community Feed, Events (RSVP), Marketplace, Maintenance, Panic, Noise complaint, Rewards, and Study Groups.
+1. **Student** (`student@reslink.app`): open Home, Community Feed, Events (RSVP), Marketplace, Maintenance (report an issue with a photo), Panic, Noise complaint, Rewards, and Study Groups. RSVP to an event and then cancel it to see the points go up and back down.
 2. **Security** (`security@reslink.app`): open the security desk, acknowledge the seeded panic alert, and resolve the noise complaint.
 3. **Maintenance** (`maintenance@reslink.app`): open the ticket board and move the leaking-tap ticket from Open to In Progress, then Resolved.
 4. **Admin** (`admin@reslink.app`): review analytics, create an event, moderate a feed post, and deactivate or reactivate a user.
@@ -138,6 +140,56 @@ The tests confirm:
 - staff registration fails without the correct access code
 - security can read the emergency queue
 - a new student can register and receive a JWT
+- password reset works without email, and an admin reset link can only be used once
+- cancelling an RSVP, leaving a study group, deleting a post, cancelling a maintenance ticket, or withdrawing a noise complaint takes back the points that action earned
+- a maintenance photo uploads without Cloudinary, can be viewed, and files that are not images are rejected
+
+## Points
+
+Students earn points for taking part: 10 for an event RSVP, 5 for a post, 5 for joining or creating a study group, and 8 for a maintenance ticket or noise complaint. Undoing any of these takes the same points back, so RSVPing and cancelling over and over earns nothing. If a student spends points and then undoes the action that earned them, the balance can drop below zero until they earn the points again. Staff reopening a cancelled ticket or a withdrawn complaint gives the points back.
+
+## Sihle's work
+
+Sihle built the first working version of ResLink, keeps it hosted, and fixed and redesigned it after group testing.
+
+### Prototype and hosting
+
+- Published the first working prototype in August 2026: the ASP.NET Core API, the browser app, the Android app, the demo accounts and data, and the Render hosting files. Added the Harvard in-text comments and the reference list.
+- Brought the app onto this group repository and stopped browsers from keeping an old copy of the app after an update.
+- Wrote the `Dockerfile` and `render.yaml`, and set up the live Render service in Frankfurt.
+- Moved the live data to Neon PostgreSQL so it survives a restart, with migrations for PostgreSQL and SQLite kept for local runs and tests ([#2](https://github.com/blessing-unlimited/Res_Link/pull/2)). Checked that a post survives a redeploy.
+- Moved hosting to this repository when the old one was retired, and pointed the Android app at the live API so it works on any phone without running the API locally.
+
+### Fixes
+
+- Sign-up: the residence list always loads and shows an error if it cannot, and the API refuses to start in production without a JWT key ([#8](https://github.com/blessing-unlimited/Res_Link/pull/8)).
+- Password reset: a "Forgot password?" page on the web and Android, an admin "Create reset link" button for when email is not set up, and reset links that use the live `https://` address.
+- Panic button: the web app sends the student's location, and the security desk shows a map link.
+- Rewards: removed the reward undo button, so a redeemed voucher can only be voided by an admin.
+- Admins can mark marketplace items as sold on the web, as the API already allowed.
+
+### Redesign
+
+- Made sharp, tightly cropped logo files (icon, full logo and horizontal) for the web, Android and the infographic.
+- Redesigned the web app around the logo colours ([#9](https://github.com/blessing-unlimited/Res_Link/pull/9)): a dark green sidebar, sign-in and sign-up tabs, pop-up messages, and layouts for phones, tablets and laptops.
+- Redesigned the Android app to match: the same theme and components, a brand header on sign-in, and a dark side rail on tablets.
+
+### Infographic
+
+- Redesigned Thami's infographic page, enlarged the header logo, and matched the header to the logo colours ([#10](https://github.com/blessing-unlimited/Res_Link/pull/10)).
+- Hosted it on Render as a static site ([#11](https://github.com/blessing-unlimited/Res_Link/pull/11)) and added the Dynamic Developers name and GitHub usernames to the team section ([#12](https://github.com/blessing-unlimited/Res_Link/pull/12)).
+
+### Fixes from Blessing's testing
+
+- Stopped points farming: undoing an action now takes back the points it earned (see Points above).
+- Maintenance photos: replaced the "Photo URL" text box with a camera and gallery upload on Android and a photo picker on the web, and show the photo on each ticket. Photos are stored in the database until Cloudinary is set up.
+- Android layout: the "Community" label in the bottom bar no longer wraps, and long titles or locations no longer squeeze status labels until their text stacks vertically. Staff status buttons wrap onto a new line on narrow phones.
+- Web layout: on phones the maintenance filter row no longer makes the whole page wider than the screen.
+
+### Tests and documentation
+
+- Wrote the automated tests, now 14 of them (see Automated tests above).
+- Wrote and maintain this run guide, the hosting steps, and the demo walkthrough.
 
 ## Thami's work
 
@@ -211,14 +263,13 @@ The API is already set up for this. When `DATABASE_URL` is set it uses PostgreSQ
 
 ### 3. Store maintenance photos
 
-Students can type a photo URL. A real report needs a picture taken on the phone and stored in cloud storage, not on the Render disk.
+Students attach a photo when they report an issue. On Android they can take one with the camera or choose one from the gallery, and on the web they pick a file (a phone browser also offers the camera). Both apps shrink the photo to a JPEG of at most 1600 pixels before sending it to `POST /api/maintenance/photos`, which only accepts real JPEG or PNG files under 5 MB.
 
-The API already has a Cloudinary upload service and `POST /api/maintenance/photos`, which accepts one JPEG or PNG under 5 MB and returns its URL.
+Until Cloudinary is set up, the API keeps each photo in the database (Neon on the live app), so photos survive a restart. Moving them to Cloudinary keeps the database small once a residence has many tickets:
 
 1. Create a free Cloudinary account and copy the cloud name, API key, and API secret from the dashboard.
-2. Add `Cloudinary__CloudName`, `Cloudinary__ApiKey`, and `Cloudinary__ApiSecret` on Render.
-3. Point the maintenance forms at the photo endpoint instead of the free-text photo URL field.
-4. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
+2. Add `Cloudinary__CloudName`, `Cloudinary__ApiKey`, and `Cloudinary__ApiSecret` on Render. New photos then go to Cloudinary automatically; older ones stay in the database and still load.
+3. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
 
 ### 4. Tell staff when something happens
 

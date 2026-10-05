@@ -2,12 +2,17 @@ package com.dynamicdevelopers.reslink.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,7 +55,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -86,8 +94,11 @@ import com.dynamicdevelopers.reslink.ui.common.IconTile
 import com.dynamicdevelopers.reslink.ui.common.ResButton
 import com.dynamicdevelopers.reslink.ui.common.ResCard
 import com.dynamicdevelopers.reslink.ui.common.ResField
+import com.dynamicdevelopers.reslink.ui.common.RemoteImage
 import com.dynamicdevelopers.reslink.ui.common.ResOutlinedButton
 import com.dynamicdevelopers.reslink.ui.common.ScreenHeader
+import com.dynamicdevelopers.reslink.ui.common.loadForUpload
+import com.dynamicdevelopers.reslink.ui.common.newCameraUri
 import com.dynamicdevelopers.reslink.ui.common.ScreenPadding
 import com.dynamicdevelopers.reslink.ui.common.SectionTitle
 import com.dynamicdevelopers.reslink.ui.common.StatusChip
@@ -102,6 +113,9 @@ import com.dynamicdevelopers.reslink.ui.theme.Tint
 import com.dynamicdevelopers.reslink.ui.theme.Tints
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 @Composable
 fun HomeScreen(api: ResLinkApi, session: SessionStore, role: String) {
@@ -419,17 +433,47 @@ fun MarketplaceScreen(api: ResLinkApi, canSell: Boolean, userId: String = "", is
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MaintenanceScreen(api: ResLinkApi, isStudent: Boolean, canUpdate: Boolean) {
     var tickets by remember { mutableStateOf(listOf<MaintenanceTicketDto>()) }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
-    var photo by remember { mutableStateOf("") }
+    var photoUrl by remember { mutableStateOf<String?>(null) }
+    var preview by remember { mutableStateOf<ImageBitmap?>(null) }
+    var uploading by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var loaded by remember { mutableStateOf(false) }
     fun reload() = scope.launch { tickets = runCatching { api.tickets() }.getOrDefault(emptyList()); loaded = true }
     LaunchedEffect(Unit) { reload() }
+
+    fun upload(uri: Uri) = scope.launch {
+        uploading = true
+        error = null
+        try {
+            val (bytes, bitmap) = loadForUpload(context, uri)
+            val part = MultipartBody.Part.createFormData("file", "ticket.jpg", bytes.toRequestBody("image/jpeg".toMediaType()))
+            photoUrl = api.uploadPhoto(part).url
+            preview = bitmap.asImageBitmap()
+        } catch (ex: Exception) {
+            error = "Could not upload the photo. ${userMessage(ex)}"
+        } finally {
+            uploading = false
+        }
+    }
+
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        val uri = cameraUri
+        if (saved && uri != null) upload(uri)
+    }
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) upload(uri)
+    }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -438,16 +482,53 @@ fun MaintenanceScreen(api: ResLinkApi, isStudent: Boolean, canUpdate: Boolean) {
                 ResCard {
                     ResField(title, { title = it }, "Issue")
                     Spacer(Modifier.height(8.dp))
-                    ResField(description, { description = it }, "Details")
+                    ResField(description, { description = it }, "Details", singleLine = false)
                     Spacer(Modifier.height(8.dp))
                     ResField(location, { location = it }, "Location")
+                    Spacer(Modifier.height(12.dp))
+                    Text("Photo (optional)", color = InkSoft, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(Modifier.height(8.dp))
-                    ResField(photo, { photo = it }, "Photo URL (optional)")
-                    Spacer(Modifier.height(8.dp))
-                    ResButton("Submit ticket") {
+                    val shown = preview
+                    if (shown != null) {
+                        Image(
+                            shown, "Photo to attach",
+                            Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(14.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        TextButton(onClick = { photoUrl = null; preview = null }) { Text("Remove photo", color = Danger) }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ResOutlinedButton(if (uploading) "Uploading…" else "Take photo", Modifier.weight(1f), color = Forest) {
+                                if (!uploading) {
+                                    val uri = newCameraUri(context)
+                                    cameraUri = uri
+                                    takePhoto.launch(uri)
+                                }
+                            }
+                            ResOutlinedButton("Choose photo", Modifier.weight(1f), color = Forest) {
+                                if (!uploading) pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }
+                        }
+                    }
+                    ErrorText(error)
+                    Spacer(Modifier.height(12.dp))
+                    ResButton("Submit ticket", loading = submitting, enabled = !uploading) {
+                        if (title.isBlank() || location.isBlank()) {
+                            error = "Add the issue and where it is."
+                            return@ResButton
+                        }
                         scope.launch {
-                            api.createTicket(CreateMaintenanceRequest(title, description, location, photo.ifBlank { null }))
-                            reload()
+                            submitting = true
+                            error = null
+                            try {
+                                api.createTicket(CreateMaintenanceRequest(title.trim(), description.trim(), location.trim(), photoUrl))
+                                title = ""; description = ""; location = ""; photoUrl = null; preview = null
+                                reload()
+                            } catch (ex: Exception) {
+                                error = userMessage(ex)
+                            } finally {
+                                submitting = false
+                            }
                         }
                     }
                 }
@@ -460,20 +541,21 @@ fun MaintenanceScreen(api: ResLinkApi, isStudent: Boolean, canUpdate: Boolean) {
             ResCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(Icons.Outlined.Build, tintFor(ticket.priority), 40.dp)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
                         Text(ticket.title, color = Ink, fontWeight = FontWeight.SemiBold)
                         Text("${ticket.location} · ${ticket.reporterName}", color = Muted, fontSize = 13.sp)
                     }
                     StatusChip(ticket.status)
                 }
                 Text(ticket.description, color = InkSoft, modifier = Modifier.padding(top = 10.dp))
-                ticket.resolutionNotes?.let { Text("Notes: $it", color = Muted) }
+                ticket.photoUrl?.let { RemoteImage(it, Modifier.padding(top = 10.dp)) }
+                ticket.resolutionNotes?.let { Text("Notes: $it", color = Muted, modifier = Modifier.padding(top = 6.dp)) }
                 if (canUpdate) {
-                    Row {
-                        listOf("Open", "InProgress", "Resolved").forEach { status ->
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("Open" to "Open", "InProgress" to "In progress", "Resolved" to "Resolved").forEach { (status, label) ->
                             FilterChip(selected = ticket.status == status, onClick = {
                                 scope.launch { api.updateTicket(ticket.id, com.dynamicdevelopers.reslink.data.UpdateTicketStatusRequest(status, "Updated by staff")); reload() }
-                            }, label = { Text(status) }, modifier = Modifier.padding(end = 6.dp))
+                            }, label = { Text(label, maxLines = 1) })
                         }
                     }
                 }
@@ -612,8 +694,8 @@ fun PanicScreen(api: ResLinkApi, session: SessionStore) {
 
         items(mine) { alert ->
             ResCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(alert.location, color = Ink, fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(alert.location, color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     StatusChip(alert.status)
                 }
                 if (alert.status == "Open") {
@@ -660,8 +742,8 @@ fun NoiseScreen(api: ResLinkApi) {
         }
         items(mine) { item ->
             ResCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(item.location, color = Ink, fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.location, color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     StatusChip(item.status)
                 }
                 if (item.status == "Open") {

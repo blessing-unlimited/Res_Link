@@ -157,6 +157,134 @@ public class AuthRoleTests
         StringAssert.Contains(await response.Content.ReadAsStringAsync(), "<div id=\"app\">");
     }
 
+    [TestMethod]
+    public async Task Cancelling_An_Rsvp_Takes_Back_Its_Points()
+    {
+        var client = await StudentClient();
+        var start = await Points(client);
+        var events = await client.GetFromJsonAsync<List<EventDto>>("/api/events");
+        var ev = events!.First(e => !e.HasRsvp);
+
+        await client.PostAsync($"/api/events/{ev.Id}/rsvp", null);
+        Assert.AreEqual(start + 10, await Points(client));
+        await client.DeleteAsync($"/api/events/{ev.Id}/rsvp");
+        Assert.AreEqual(start, await Points(client));
+
+        await client.PostAsync($"/api/events/{ev.Id}/rsvp", null);
+        await client.DeleteAsync($"/api/events/{ev.Id}/rsvp");
+        await client.DeleteAsync($"/api/events/{ev.Id}/rsvp");
+        Assert.AreEqual(start, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task Leaving_A_Study_Group_Takes_Back_Its_Points()
+    {
+        var client = await StudentClient();
+        var start = await Points(client);
+        var groups = await client.GetFromJsonAsync<List<StudyGroupDto>>("/api/study-groups");
+        var group = groups!.First(g => !g.IsMember);
+
+        await client.PostAsync($"/api/study-groups/{group.Id}/join", null);
+        Assert.AreEqual(start + 5, await Points(client));
+        await client.DeleteAsync($"/api/study-groups/{group.Id}/leave");
+        Assert.AreEqual(start, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task Deleting_A_Post_Takes_Back_Its_Points()
+    {
+        var client = await StudentClient();
+        var start = await Points(client);
+        var response = await client.PostAsJsonAsync("/api/posts", new CreatePostRequest("Points check", "Temporary post", null, false, null));
+        var post = await response.Content.ReadFromJsonAsync<PostDto>();
+        Assert.AreEqual(start + 5, await Points(client));
+
+        await client.DeleteAsync($"/api/posts/{post!.Id}");
+        Assert.AreEqual(start, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task Cancelling_A_Ticket_Takes_Back_Its_Points()
+    {
+        var client = await StudentClient();
+        var start = await Points(client);
+        var response = await client.PostAsJsonAsync("/api/maintenance",
+            new CreateMaintenanceRequest("Broken window latch", "Will not close", "Room B-204", null, null, null));
+        var ticket = await response.Content.ReadFromJsonAsync<MaintenanceTicketDto>();
+        Assert.AreEqual(start + 8, await Points(client));
+
+        await client.PutAsJsonAsync($"/api/maintenance/{ticket!.Id}/status", new UpdateTicketStatusRequest("Cancelled", "Cancelled by student"));
+        Assert.AreEqual(start, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task Withdrawing_A_Noise_Complaint_Takes_Back_Its_Points_Once()
+    {
+        var client = await StudentClient();
+        var start = await Points(client);
+        await client.PostAsJsonAsync("/api/noise", new CreateNoiseRequest("Block C corridor", "Loud music", false));
+        Assert.AreEqual(start + 8, await Points(client));
+
+        var mine = await client.GetFromJsonAsync<List<NoiseComplaintDto>>("/api/noise/mine");
+        var complaint = mine!.First(n => n.Status == "Open");
+        await client.PutAsync($"/api/noise/{complaint.Id}/withdraw", null);
+        await client.PutAsync($"/api/noise/{complaint.Id}/withdraw", null);
+        Assert.AreEqual(start, await Points(client));
+    }
+
+    [TestMethod]
+    public async Task Maintenance_Photo_Uploads_Without_Cloudinary_And_Can_Be_Viewed()
+    {
+        var client = await StudentClient();
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
+
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(png);
+        file.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        form.Add(file, "file", "tap.png");
+        var upload = await client.PostAsync("/api/maintenance/photos", form);
+        Assert.AreEqual(HttpStatusCode.OK, upload.StatusCode, await upload.Content.ReadAsStringAsync());
+        var url = (await upload.Content.ReadFromJsonAsync<Dictionary<string, string>>())!["url"];
+        StringAssert.StartsWith(url, "/api/maintenance/photos/");
+
+        var anonymous = _factory.CreateClient();
+        var photo = await anonymous.GetAsync(url);
+        Assert.AreEqual(HttpStatusCode.OK, photo.StatusCode);
+        Assert.AreEqual("image/png", photo.Content.Headers.ContentType?.MediaType);
+
+        var ticket = await client.PostAsJsonAsync("/api/maintenance",
+            new CreateMaintenanceRequest("Dripping tap", "Bathroom tap drips", "Room B-204", url, null, null));
+        Assert.AreEqual(HttpStatusCode.OK, ticket.StatusCode);
+        Assert.AreEqual(url, (await ticket.Content.ReadFromJsonAsync<MaintenanceTicketDto>())!.PhotoUrl);
+    }
+
+    [TestMethod]
+    public async Task Maintenance_Photo_Rejects_Files_That_Are_Not_Images()
+    {
+        var client = await StudentClient();
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent("<script>alert(1)</script>"u8.ToArray());
+        file.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        form.Add(file, "file", "fake.png");
+        var upload = await client.PostAsync("/api/maintenance/photos", form);
+        Assert.AreEqual(HttpStatusCode.BadRequest, upload.StatusCode);
+
+        var ticket = await client.PostAsJsonAsync("/api/maintenance",
+            new CreateMaintenanceRequest("Dripping tap", "Bathroom tap drips", "Room B-204", "javascript:alert(1)", null, null));
+        Assert.AreEqual(HttpStatusCode.BadRequest, ticket.StatusCode);
+    }
+
+    private async Task<HttpClient> StudentClient()
+    {
+        var client = _factory.CreateClient();
+        var auth = await Login(client, "student@reslink.app", "Student123!");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+        return client;
+    }
+
+    private static async Task<int> Points(HttpClient client) =>
+        (await client.GetFromJsonAsync<UserSummaryDto>("/api/profile"))!.Points;
+
     private static async Task<AuthResponse> Login(HttpClient client, string email, string password)
     {
         var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(email, password));

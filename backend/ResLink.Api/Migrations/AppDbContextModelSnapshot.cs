@@ -206,6 +206,31 @@ namespace ResLink.Api.Migrations
                     b.ToTable("Rsvps");
                 });
 
+            modelBuilder.Entity("ResLink.Api.Domain.MaintenancePhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("UploadedById")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MaintenancePhotos");
+                });
+
             modelBuilder.Entity("ResLink.Api.Domain.MaintenanceTicket", b =>
                 {
                     b.Property<Guid>("Id")
