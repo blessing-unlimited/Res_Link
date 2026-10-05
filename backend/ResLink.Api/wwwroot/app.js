@@ -1,6 +1,6 @@
 // Browser prototype: same JWT API as Android, with role menus (Microsoft, 2025b; MDN, 2025).
 const app = document.getElementById("app");
-const state = { user: JSON.parse(localStorage.getItem("reslink.user") || "null"), page: "home", filter: "All", tab: "overview", menu: false, more: false };
+const state = { user: JSON.parse(localStorage.getItem("reslink.user") || "null"), page: "home", filter: "All", tab: "overview", menu: false, more: false, auth: "signin" };
 let sessionNotice = "";
 
 const navByRole = {
@@ -20,28 +20,58 @@ const navByRole = {
     ["home", "Dashboard"], ["maintenance", "Maintenance"], ["notifications", "Notifications"], ["profile", "Profile"]
   ]
 };
+const navSection = { home: "Overview", community: "Community", events: "Community", market: "Community", groups: "Community", maintenance: "Services", security: "Services", rewards: "Services", notifications: "Services", admin: "Manage", profile: "Account" };
+const shortLabel = { home: "Home", community: "Feed", events: "Events", market: "Market", maintenance: "Repairs", security: "Security", notifications: "Alerts", profile: "Profile", groups: "Groups", rewards: "Rewards", admin: "Admin" };
+// Each feature keeps one tint so it is recognisable on every screen.
+const featureTint = { home: "brand", community: "leaf", events: "sky", market: "plum", groups: "leaf", maintenance: "gold", security: "rose", rewards: "gold", admin: "slate", notifications: "sky", profile: "leaf" };
 
 // Stroke icons share one weight so the chrome does not look illustrated (Material Design, 2025).
 function icon(name) {
   const paths = {
-    home: '<path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11V10.5"/>',
-    community: '<path d="M5 6.5h14v8H8l-3 3z"/>',
-    events: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5V7M16 3.5V7M4 10h16"/>',
-    market: '<path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6.5A3 3 0 0 1 12 3.5 3 3 0 0 1 15 6.5V8"/>',
-    groups: '<circle cx="9" cy="9" r="2.2"/><circle cx="15.5" cy="9.5" r="1.8"/><path d="M4.8 18c.4-2.4 2.2-3.6 4.2-3.6s3.8 1.2 4.2 3.6M13 14.6c1.3-.4 2.6-.2 3.6.8 1 1.2 1.3 2.6 1.4 2.6"/>',
-    maintenance: '<path d="M14.5 6.5a3.2 3.2 0 0 0-4.2 4.2L4.5 16.5 7.5 19.5l5.8-5.8a3.2 3.2 0 0 0 4.2-4.2L15 12l-3-3 2.5-2.5z"/>',
-    security: '<path d="M12 3.5 19 6.5v5.2c0 4.2-2.8 7.2-7 8.8-4.2-1.6-7-4.6-7-8.8V6.5z"/>',
-    rewards: '<rect x="4" y="10" width="16" height="9" rx="1.5"/><path d="M12 10v9M4 13.5h16M12 10c-1.4-2.2-4.2-2.4-4.2-.6S11 10 12 10zm0 0c1.4-2.2 4.2-2.4 4.2-.6S13 10 12 10z"/>',
-    profile: '<circle cx="12" cy="8.5" r="3"/><path d="M5.5 19.5c1-3 3.2-4.5 6.5-4.5s5.5 1.5 6.5 4.5"/>',
-    admin: '<path d="M4 12h16M12 4v16M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    home: '<path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11V10.5"/><path d="M10 20v-5h4v5"/>',
+    community: '<path d="M5 6.5h14v8.5H9l-4 3.5z"/><path d="M9 10.5h6"/>',
+    events: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3.5V7M16 3.5V7M4 10h16"/>',
+    market: '<path d="M5.5 8h13l-1 12h-11z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
+    groups: '<circle cx="9" cy="9" r="2.6"/><circle cx="16" cy="9.5" r="2"/><path d="M4.5 18.5c.5-2.6 2.3-4 4.5-4s4 1.4 4.5 4M14.5 14.6c2.2-.4 4.2.8 4.8 3.4"/>',
+    maintenance: '<path d="M14.5 6.5a3.2 3.2 0 0 0-4.2 4.2L4.5 16.5l3 3 5.8-5.8a3.2 3.2 0 0 0 4.2-4.2L15 12l-3-3 2.5-2.5z"/>',
+    security: '<path d="M12 3.5 19 6.5v5.2c0 4.2-2.8 7.2-7 8.8-4.2-1.6-7-4.6-7-8.8V6.5z"/><path d="m9.2 12 2 2 3.8-4"/>',
+    rewards: '<rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M12 10v10M4 14h16M12 10c-1.4-2.2-4.2-2.4-4.2-.6S11 10 12 10zm0 0c1.4-2.2 4.2-2.4 4.2-.6S13 10 12 10z"/>',
+    profile: '<circle cx="12" cy="8.5" r="3.2"/><path d="M5.5 19.5c1-3 3.2-4.5 6.5-4.5s5.5 1.5 6.5 4.5"/>',
+    admin: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
     notifications: '<path d="M6 16.5h12l-1.2-2.2V10a4.8 4.8 0 0 0-9.6 0v4.3z"/><path d="M10 16.5a2 2 0 0 0 4 0"/>',
-    more: '<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>'
+    more: '<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>',
+    logout: '<path d="M14 5h4.5v14H14"/><path d="M10 8.5 6.5 12l3.5 3.5M6.5 12H15"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    alert: '<path d="M12 4 21 19.5H3z"/><path d="M12 10v4M12 17v.2"/>',
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/>',
+    pin: '<path d="M12 21s6.5-5.6 6.5-11A6.5 6.5 0 0 0 5.5 10c0 5.4 6.5 11 6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+    heart: '<path d="M12 19.5s-7.5-4.4-7.5-9.7A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4c0 5.3-7.5 9.7-7.5 9.7z"/>',
+    chat: '<path d="M5 6.5h14v9H10l-5 3.5z"/>',
+    copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6.5A1.5 1.5 0 0 1 6.5 5H15"/>',
+    key: '<circle cx="8.5" cy="14.5" r="3.5"/><path d="m11 12 8-8M16 7l2 2M14 9l1.5 1.5"/>',
+    mail: '<rect x="4" y="6" width="16" height="12" rx="2"/><path d="m4.5 7 7.5 6 7.5-6"/>',
+    sparkle: '<path d="M12 4v4M12 16v4M4 12h4M16 12h4M6.5 6.5l2.5 2.5M15 15l2.5 2.5M6.5 17.5 9 15M15 9l2.5-2.5"/>',
+    book: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H19v14H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/>',
+    back: '<path d="M14.5 6 8.5 12l6 6"/>',
+    map: '<path d="m4 6.5 5-2 6 2 5-2v13l-5 2-6-2-5 2z"/><path d="M9 4.5v13M15 6.5v13"/>'
   };
   const d = paths[name] || paths.home;
-  return `<span class="ico-svg" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg></span>`;
+  return `<span class="ico-svg" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg></span>`;
 }
 
 class SessionError extends Error {}
+
+async function readError(res) {
+  const text = await res.text();
+  if (!text) return res.status === 403 ? "Your role cannot do that." : res.status === 404 ? "That item no longer exists." : `Request failed (${res.status}).`;
+  try {
+    const body = JSON.parse(text);
+    if (typeof body === "string") return body;
+    if (body.errors) return Object.values(body.errors).flat().join(" ");
+    return body.message || body.detail || body.title || text;
+  } catch { return text; }
+}
 
 async function api(path, options = {}) {
   // Fetch keeps the UI on the same origin as the API (MDN, 2025).
@@ -54,31 +84,75 @@ async function api(path, options = {}) {
     sessionNotice = "Your session ended. Sign in again to continue.";
     throw new SessionError("Session expired");
   }
-  if (!res.ok) throw new Error((await res.text()) || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(await readError(res));
   if (res.status === 204) return null;
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
 
 const save = user => { state.user = user; user ? localStorage.setItem("reslink.user", JSON.stringify(user)) : localStorage.removeItem("reslink.user"); };
-const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const val = id => document.getElementById(id)?.value ?? "";
 const initial = name => (name || "R").trim().charAt(0).toUpperCase();
+const initials = name => (name || "R").split(" ").filter(Boolean).map(p => p[0]).join("").slice(0, 2).toUpperCase();
 const tagClass = value => {
   const v = (value || "").toLowerCase();
-  if (["social", "student", "good", "electronics"].includes(v)) return "blue";
-  if (["sports", "high", "fair"].includes(v)) return "orange";
-  if (["academic", "admin", "announcement"].includes(v)) return "purple";
-  if (["pending", "open", "medium"].includes(v)) return "yellow";
-  if (["resolved", "like new", "member"].includes(v)) return "green";
-  return "gray";
+  if (["resolved", "like new", "member", "used", "student", "departed"].includes(v)) return "leaf";
+  if (["pending", "open", "medium", "fair", "sports", "maintenance", "featured"].includes(v)) return "gold";
+  if (["in progress", "acknowledged", "good", "social", "onsite", "electronics"].includes(v)) return "sky";
+  if (["high", "urgent", "security", "voided", "cultural"].includes(v)) return "rose";
+  if (["academic", "admin", "announcement", "poll", "textbooks"].includes(v)) return "plum";
+  return "slate";
 };
-const prettyStatus = s => s === "Open" ? "Pending" : s === "InProgress" ? "In Progress" : s;
+const prettyStatus = s => s === "Open" ? "Pending" : s === "InProgress" ? "In Progress" : s === "OnSite" ? "On site" : s;
 const fmtDate = iso => {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
+const timeAgo = iso => {
+  const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
+
+function pageHead(title, sub, action = "", eyebrow = "") {
+  return `<div class="page-head"><div>${eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : ""}<h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div>${action}</div>`;
+}
+const emptyState = (title, text, name = "sparkle", tint = "leaf") =>
+  `<div class="empty"><div class="tile ${tint}">${icon(name)}</div><b>${title}</b><p>${text}</p></div>`;
+const pills = (items, active, attr = "filter") =>
+  `<div class="pills">${items.map(([value, label]) => `<button class="pill ${active === value ? "active" : ""}" data-${attr}="${value}">${label}</button>`).join("")}</div>`;
+const toggleBtn = (id, label) => `<button class="btn" id="${id}">${icon("plus")}<span>${label}</span></button>`;
+
+function toast(message, kind = "ok") {
+  const box = document.getElementById("toasts");
+  const el = document.createElement("div");
+  el.className = `toast ${kind}`;
+  el.innerHTML = `${icon(kind === "error" ? "alert" : "check")}<div>${esc(message)}</div>`;
+  box.appendChild(el);
+  setTimeout(() => { el.classList.add("leaving"); setTimeout(() => el.remove(), 220); }, kind === "error" ? 5200 : 3400);
+}
+
+function openDialog(inner) {
+  const back = document.createElement("div");
+  back.className = "dialog-back";
+  back.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">${inner}</div>`;
+  const close = () => { back.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  back.addEventListener("click", e => { if (e.target === back || e.target.closest("[data-close]")) close(); });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(back);
+  return { el: back, close };
+}
+
+// Any failed button action shows its reason instead of failing silently.
+window.addEventListener("unhandledrejection", e => {
+  if (e.reason instanceof SessionError) { render(); return; }
+  toast(e.reason?.message || "Something went wrong. Try again.", "error");
+});
 
 // Location is asked for only when the panic button is pressed; a denial or timeout still sends the alert (MDN, 2025).
 function currentPosition() {
@@ -88,28 +162,29 @@ function currentPosition() {
 }
 
 const mapLink = a => a.latitude != null && a.longitude != null
-  ? ` · <a class="link" href="https://www.google.com/maps?q=${a.latitude},${a.longitude}" target="_blank" rel="noopener">Open in Maps</a>`
+  ? `<a class="link" href="https://www.google.com/maps?q=${a.latitude},${a.longitude}" target="_blank" rel="noopener">${icon("map")}Open in Maps</a>`
   : "";
 
-function brand() {
-  return `<div class="brand-row"><img src="reslink.jpeg" alt="ResLink" /></div>`;
-}
-
 function navButtons(nav) {
-  return nav.map(([id, label]) => `<button class="${state.page === id ? "active" : ""}" data-page="${id}">${icon(id)}<span>${label}</span></button>`).join("");
+  let section = "";
+  return nav.map(([id, label]) => {
+    const head = navSection[id] !== section ? `<div class="nav-label">${navSection[id]}</div>` : "";
+    section = navSection[id];
+    return `${head}<button class="${state.page === id ? "active" : ""}" data-page="${id}" title="${label}">${icon(id)}<span>${label}</span></button>`;
+  }).join("");
 }
 
 async function render() {
   const resetToken = location.pathname === "/reset-password" ? new URLSearchParams(location.search).get("token") : null;
   if (resetToken) {
-    app.innerHTML = resetHtml();
+    app.innerHTML = authShell(resetHtml());
     bindReset(resetToken);
     return;
   }
   // The sidebar is only shown once a token is stored (OWASP, 2023).
   if (!state.user?.token) {
     if (state.user) save(null);
-    app.innerHTML = authHtml();
+    app.innerHTML = authShell(authCard());
     bindAuth();
     if (sessionNotice) {
       const note = document.getElementById("auth-error");
@@ -121,98 +196,144 @@ async function render() {
   const nav = navByRole[state.user.role] || navByRole.Student;
   const primary = nav.slice(0, 4);
   const extra = nav.slice(4);
+  document.body.classList.toggle("menu-open", state.menu);
   app.innerHTML = `
     <div class="shell">
       <header class="topbar">
-        ${brand()}
-        <button class="menu-btn" id="open-menu" aria-label="Open menu">${icon("more")}</button>
+        <img src="brand/horizontal.png" alt="ResLink" />
+        <button class="avatar" id="open-menu" aria-label="Open menu">${initials(state.user.fullName)}</button>
       </header>
-      ${state.menu ? `<div class="scrim" id="scrim"></div>` : ""}
+      ${state.menu || state.more ? `<div class="scrim${state.menu ? "" : " under"}" id="scrim"></div>` : ""}
       <aside class="sidebar${state.menu ? " open" : ""}">
-        ${brand()}
+        <div class="side-brand"><img class="full" src="brand/horizontal.png" alt="ResLink" /><img class="mark" src="brand/mark.png" alt="ResLink" /></div>
         <nav class="nav">${navButtons(nav)}</nav>
         <div class="side-foot">
-          <div class="user-line"><div class="avatar">${initial(state.user.fullName)}</div><div class="user-meta"><b>${esc(state.user.fullName)}</b><small>${esc(state.user.role)}</small></div></div>
-          <button class="signout" id="logout">Sign out</button>
+          <div class="avatar">${initials(state.user.fullName)}</div>
+          <div class="who"><b>${esc(state.user.fullName)}</b><small>${esc(state.user.role)}${state.user.room ? ` · ${esc(state.user.room)}` : ""}</small></div>
+          <button class="icon-btn" id="logout" title="Sign out" aria-label="Sign out">${icon("logout")}</button>
         </div>
       </aside>
       <main class="main" id="main"></main>
-      <nav class="bottom-nav">
-        ${primary.map(([id, label]) => `<button class="${state.page === id ? "active" : ""}" data-page="${id}">${icon(id)}<span>${label.split(" ")[0]}</span></button>`).join("")}
-        <button id="more-btn" class="${extra.some(([id]) => id === state.page) ? "active" : ""}">${icon("more")}<span>More</span></button>
+      <nav class="bottom-nav" style="grid-template-columns:repeat(${primary.length + (extra.length ? 1 : 0)},1fr)">
+        ${primary.map(([id]) => `<button class="${state.page === id ? "active" : ""}" data-page="${id}">${icon(id)}<span>${shortLabel[id]}</span></button>`).join("")}
+        ${extra.length ? `<button id="more-btn" class="${extra.some(([id]) => id === state.page) || state.more ? "active" : ""}">${icon("more")}<span>More</span></button>` : ""}
       </nav>
-      ${state.more ? `<div class="more-sheet">${navButtons(extra)}</div>` : ""}
+      ${state.more ? `<div class="more-sheet">${extra.map(([id, label]) => `<button class="${state.page === id ? "active" : ""}" data-page="${id}"><span class="tile ${featureTint[id]}">${icon(id)}</span>${label}</button>`).join("")}</div>` : ""}
     </div>`;
-  document.querySelectorAll("[data-page]").forEach(b => b.onclick = () => { state.page = b.dataset.page; state.filter = "All"; state.menu = false; state.more = false; render(); });
-  document.getElementById("logout").onclick = () => { save(null); render(); };
-  const open = document.getElementById("open-menu");
-  if (open) open.onclick = () => { state.menu = true; state.more = false; render(); };
+  document.querySelectorAll("[data-page]").forEach(b => b.onclick = () => { state.page = b.dataset.page; state.filter = "All"; state.tab = "overview"; state.menu = false; state.more = false; render(); window.scrollTo(0, 0); });
+  document.getElementById("logout").onclick = () => { save(null); state.menu = false; state.auth = "signin"; render(); };
+  document.getElementById("open-menu").onclick = () => { state.menu = true; state.more = false; render(); };
   const scrim = document.getElementById("scrim");
-  if (scrim) scrim.onclick = () => { state.menu = false; render(); };
-  document.getElementById("more-btn").onclick = () => { state.more = !state.more; render(); };
+  if (scrim) scrim.onclick = () => { state.menu = false; state.more = false; render(); };
+  const more = document.getElementById("more-btn");
+  if (more) more.onclick = () => { state.more = !state.more; render(); };
   await draw();
 }
 
-function authHtml() {
-  return `<div class="auth-wrap">
-    <section class="auth-hero">
-      <img class="auth-mark" src="reslink.jpeg" alt="ResLink" />
-      <div><h2>Residence life, in one place.</h2><p>Community, safety, and maintenance for students and staff.</p></div>
+function authShell(card) {
+  return `<div class="auth">
+    <section class="auth-brand">
+      <div class="auth-grid-lines"></div>
+      <div>
+        <img class="auth-lockup" src="brand/lockup.png" alt="ResLink. Find. Connect. Live." />
+        <div class="auth-copy">
+          <h2>Residence life, <em>connected.</em></h2>
+          <p>One place for community, events, safety and maintenance, for students and the staff who look after them.</p>
+        </div>
+        <ul class="auth-points">
+          <li><span class="tile">${icon("community")}</span><div><b>Community and events</b>Posts, polls, study groups and RSVPs in one feed.</div></li>
+          <li><span class="tile">${icon("security")}</span><div><b>Help when it matters</b>A panic button that sends your room and live location.</div></li>
+          <li><span class="tile">${icon("maintenance")}</span><div><b>Repairs you can follow</b>Report an issue and track it until it is fixed.</div></li>
+        </ul>
+      </div>
+      <p class="auth-foot">© ${new Date().getFullYear()} ResLink</p>
     </section>
-    <div class="auth-panel"><div class="auth-card">
-    <h1>Welcome back</h1>
-    <p class="lead">Sign in to open the dashboard for your role.</p>
-    <label>Email<input id="email" type="email" value="student@reslink.app" /></label>
-    <label>Password<input id="password" type="password" value="Student123!" /></label>
-    <p class="error" id="auth-error"></p>
-    <p><button class="btn wide" id="login">Log in</button></p>
-    <p><button class="link" id="show-f">Forgot password?</button></p>
-    <div class="hidden" id="f-box">
-      <h3>Reset your password</h3>
-      <p class="muted">Enter your account email. If email is not set up yet, ask the residence admin for a reset link.</p>
-      <label>Email<input id="f-email" type="email" /></label>
-      <p class="muted" id="f-msg"></p><button class="btn" id="send-f">Send reset link</button>
-    </div>
-    <p class="row"><button class="btn ghost" id="show-s">Student sign-up</button><button class="btn ghost" id="show-t">Staff sign-up</button></p>
-    <div class="hidden" id="s-box">
-      <h3>Student sign-up</h3>
-      <label>Full name<input id="s-name" /></label><label>Email<input id="s-email" /></label>
-      <label>Password<input id="s-password" type="password" /></label><label>Student number<input id="s-number" /></label>
-      <label>Room<input id="s-room" /></label><label>Residence<select id="s-res"></select></label>
-      <p class="error" id="s-error"></p><button class="btn" id="reg-s">Create student account</button>
-    </div>
-    <div class="hidden" id="t-box">
-      <h3>Staff sign-up</h3>
-      <label>Full name<input id="t-name" /></label><label>Email<input id="t-email" /></label>
-      <label>Password<input id="t-password" type="password" /></label><label>Staff ID<input id="t-staff" /></label>
-      <label>Access code<input id="t-code" type="password" /></label>
-      <label>Role<select id="t-role"><option>Admin</option><option>Security</option><option>Maintenance</option></select></label>
-      <label>Residence<select id="t-res"></select></label>
-      <p class="error" id="t-error"></p><button class="btn" id="reg-t">Create staff account</button>
-    </div>
-  </div></div></div>`;
+    <header class="auth-mobile-head"><img src="brand/lockup.png" alt="ResLink. Find. Connect. Live." /><p>Community, safety and maintenance for your residence.</p></header>
+    <div class="auth-side"><div class="auth-card" id="auth-card">${card}</div></div>
+  </div>`;
+}
+
+const demoAccounts = [
+  ["Student", "student@reslink.app", "Student123!", ""],
+  ["Admin", "admin@reslink.app", "Admin123!", "plum"],
+  ["Security", "security@reslink.app", "Security123!", "rose"],
+  ["Maintenance", "maintenance@reslink.app", "Maintenance123!", "gold"]
+];
+
+function authCard() {
+  const tab = state.auth;
+  if (tab === "forgot") {
+    return `<button class="link back-link" id="to-signin">${icon("back")}Back to sign in</button>
+      <h1>Reset your password</h1>
+      <p class="lead">Enter your account email and we will send a one-time link. If email is not set up at your residence yet, ask the residence admin for a reset link.</p>
+      <form class="stack" id="forgot-form">
+        <label>Email<input id="f-email" type="email" autocomplete="email" placeholder="you@example.com" required /></label>
+        <p class="note" id="f-msg"></p>
+        <button class="btn lg wide" type="submit" id="send-f">${icon("mail")}<span>Send reset link</span></button>
+      </form>`;
+  }
+  const tabs = `<div class="segmented" role="tablist">
+    ${[["signin", "Sign in"], ["student", "Student"], ["staff", "Staff"]].map(([id, label]) => `<button type="button" role="tab" class="${tab === id ? "active" : ""}" data-auth="${id}">${label}</button>`).join("")}
+  </div>`;
+  if (tab === "student") {
+    return `<h1>Join your residence</h1><p class="lead">Create a student account in under a minute.</p>${tabs}
+      <form class="form-grid" id="student-form">
+        <label class="full">Full name<input id="s-name" autocomplete="name" required /></label>
+        <label class="full">Email<input id="s-email" type="email" autocomplete="email" required /></label>
+        <label class="full">Password<input id="s-password" type="password" autocomplete="new-password" minlength="8" required /></label>
+        <label>Student number<input id="s-number" required /></label>
+        <label>Room<input id="s-room" placeholder="e.g. A-214" required /></label>
+        <label class="full">Residence<select id="s-res"><option value="">Loading residences…</option></select></label>
+        <p class="error full" id="s-error"></p>
+        <button class="btn lg wide full" type="submit" id="reg-s">Create student account</button>
+      </form>`;
+  }
+  if (tab === "staff") {
+    return `<h1>Staff sign-up</h1><p class="lead">Admins, security and maintenance staff need the access code from the residence.</p>${tabs}
+      <form class="form-grid" id="staff-form">
+        <label class="full">Full name<input id="t-name" autocomplete="name" required /></label>
+        <label class="full">Email<input id="t-email" type="email" autocomplete="email" required /></label>
+        <label class="full">Password<input id="t-password" type="password" autocomplete="new-password" minlength="8" required /></label>
+        <label>Staff ID<input id="t-staff" required /></label>
+        <label>Role<select id="t-role"><option>Admin</option><option>Security</option><option>Maintenance</option></select></label>
+        <label class="full">Access code<input id="t-code" type="password" autocomplete="off" required /></label>
+        <label class="full">Residence<select id="t-res"><option value="">Loading residences…</option></select></label>
+        <p class="error full" id="t-error"></p>
+        <button class="btn lg wide full" type="submit" id="reg-t">Create staff account</button>
+      </form>`;
+  }
+  return `<h1>Welcome back</h1><p class="lead">Sign in to open the dashboard for your role.</p>${tabs}
+    <form class="stack" id="login-form">
+      <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com" required /></label>
+      <div>
+        <div class="field-row"><label for="password">Password</label><button type="button" class="link" id="show-f">Forgot password?</button></div>
+        <input id="password" type="password" autocomplete="current-password" required style="margin-top:6px" />
+      </div>
+      <p class="error" id="auth-error"></p>
+      <button class="btn lg wide" type="submit" id="login">Sign in</button>
+    </form>
+    <div class="demo"><p>Explore with a demo account</p><div class="chips">
+      ${demoAccounts.map(([role, email, password, tint]) => `<button type="button" class="chip ${tint}" data-email="${email}" data-password="${password}"><i></i>${role}</button>`).join("")}
+    </div></div>`;
 }
 
 function resetHtml() {
-  return `<div class="auth-wrap">
-    <section class="auth-hero">
-      <img class="auth-mark" src="reslink.jpeg" alt="ResLink" />
-      <div><h2>Set a new password.</h2><p>This link works once and expires 30 minutes after it was created.</p></div>
-    </section>
-    <div class="auth-panel"><div class="auth-card">
-    <h1>New password</h1>
-    <label>New password<input id="r-pass" type="password" autocomplete="new-password" /></label>
-    <label>Confirm password<input id="r-pass2" type="password" autocomplete="new-password" /></label>
-    <p class="error" id="r-error"></p>
-    <p><button class="btn wide" id="r-save">Save password</button></p>
-    <p><button class="link" id="r-back">Back to sign in</button></p>
-  </div></div></div>`;
+  return `<h1>Set a new password</h1>
+    <p class="lead">This link works once and expires 30 minutes after it was created.</p>
+    <form class="stack" id="reset-form">
+      <label>New password<input id="r-pass" type="password" autocomplete="new-password" required /></label>
+      <label>Confirm password<input id="r-pass2" type="password" autocomplete="new-password" required /></label>
+      <p class="error" id="r-error"></p>
+      <button class="btn lg wide" type="submit" id="r-save">${icon("key")}<span>Save password</span></button>
+    </form>
+    <p style="margin-top:18px"><button class="link" id="r-back">${icon("back")}Back to sign in</button></p>`;
 }
 
 function bindReset(token) {
   const back = () => { history.replaceState(null, "", "/"); render(); };
   document.getElementById("r-back").onclick = back;
-  document.getElementById("r-save").onclick = async () => {
+  document.getElementById("reset-form").onsubmit = async e => {
+    e.preventDefault();
     const error = document.getElementById("r-error");
     if (val("r-pass").length < 8) { error.textContent = "Use at least 8 characters."; return; }
     if (val("r-pass") !== val("r-pass2")) { error.textContent = "The passwords do not match."; return; }
@@ -220,55 +341,128 @@ function bindReset(token) {
       await api("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, newPassword: val("r-pass") }) });
       sessionNotice = "Password saved. Sign in with your new password.";
       back();
-    } catch (e) { error.textContent = e.message; }
+    } catch (err) { error.textContent = err.message; }
   };
 }
 
+function busy(button, on, text) {
+  if (!button) return;
+  if (on) { button.dataset.label = button.innerHTML; button.disabled = true; button.textContent = text; }
+  else { button.disabled = false; button.innerHTML = button.dataset.label || button.innerHTML; }
+}
+
+function signedIn(user) {
+  save(user);
+  state.page = "home";
+  state.auth = "signin";
+  render();
+}
+
 function bindAuth() {
-  api("/api/auth/residences").then(items => {
-    ["s-res", "t-res"].forEach(id => { document.getElementById(id).innerHTML = items.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join(""); });
-    if (!items.length) ["s-error", "t-error"].forEach(id => { document.getElementById(id).textContent = "No residences are set up yet. Ask the residence admin to add one."; });
-  }).catch(() => {
-    ["s-error", "t-error"].forEach(id => { document.getElementById(id).textContent = "Residences could not be loaded. Check that the API is running, then refresh."; });
+  const card = document.getElementById("auth-card");
+  const switchTo = tab => { state.auth = tab; card.innerHTML = authCard(); bindAuth(); };
+  card.querySelectorAll("[data-auth]").forEach(b => b.onclick = () => switchTo(b.dataset.auth));
+
+  if (state.auth === "forgot") {
+    document.getElementById("to-signin").onclick = () => switchTo("signin");
+    document.getElementById("forgot-form").onsubmit = async e => {
+      e.preventDefault();
+      const msg = document.getElementById("f-msg");
+      const button = document.getElementById("send-f");
+      busy(button, true, "Sending…");
+      try {
+        const res = await api("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: val("f-email") }) });
+        msg.textContent = res.message;
+      } catch (err) { msg.textContent = err.message; }
+      finally { busy(button, false); }
+    };
+    return;
+  }
+
+  if (state.auth === "student" || state.auth === "staff") {
+    const [selectId, errorId] = state.auth === "student" ? ["s-res", "s-error"] : ["t-res", "t-error"];
+    api("/api/auth/residences").then(items => {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      select.innerHTML = items.length
+        ? items.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("")
+        : `<option value="">No residences yet</option>`;
+      if (!items.length) document.getElementById(errorId).textContent = "No residences are set up yet. Ask the residence admin to add one.";
+    }).catch(() => {
+      const error = document.getElementById(errorId);
+      if (error) error.textContent = "Residences could not be loaded. Check that the API is running, then refresh.";
+    });
+  }
+
+  if (state.auth === "student") {
+    document.getElementById("student-form").onsubmit = async e => {
+      e.preventDefault();
+      const button = document.getElementById("reg-s");
+      busy(button, true, "Creating account…");
+      try { signedIn(await api("/api/auth/register/student", { method: "POST", body: JSON.stringify({ fullName: val("s-name"), email: val("s-email"), password: val("s-password"), studentNumber: val("s-number"), room: val("s-room"), residenceId: val("s-res") }) })); }
+      catch (err) { document.getElementById("s-error").textContent = err.message; busy(button, false); }
+    };
+    return;
+  }
+
+  if (state.auth === "staff") {
+    document.getElementById("staff-form").onsubmit = async e => {
+      e.preventDefault();
+      const button = document.getElementById("reg-t");
+      busy(button, true, "Creating account…");
+      try { signedIn(await api("/api/auth/register/staff", { method: "POST", body: JSON.stringify({ fullName: val("t-name"), email: val("t-email"), password: val("t-password"), staffId: val("t-staff"), accessCode: val("t-code"), role: val("t-role"), residenceId: val("t-res") }) })); }
+      catch { document.getElementById("t-error").textContent = "Invalid access code or details."; busy(button, false); }
+    };
+    return;
+  }
+
+  const login = async (email, password) => {
+    const button = document.getElementById("login");
+    busy(button, true, "Signing in…");
+    try { signedIn(await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) })); }
+    catch { document.getElementById("auth-error").textContent = "Invalid email or password."; busy(button, false); }
+  };
+  document.getElementById("login-form").onsubmit = e => { e.preventDefault(); login(val("email"), val("password")); };
+  document.getElementById("show-f").onclick = () => switchTo("forgot");
+  card.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+    document.getElementById("email").value = c.dataset.email;
+    document.getElementById("password").value = c.dataset.password;
+    login(c.dataset.email, c.dataset.password);
   });
-  document.getElementById("login").onclick = async () => {
-    try { save(await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email: val("email"), password: val("password") }) })); state.page = "home"; render(); }
-    catch { document.getElementById("auth-error").textContent = "Invalid email or password."; }
-  };
-  document.getElementById("show-f").onclick = () => document.getElementById("f-box").classList.toggle("hidden");
-  document.getElementById("send-f").onclick = async () => {
-    const msg = document.getElementById("f-msg");
-    try {
-      const res = await api("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: val("f-email") }) });
-      msg.textContent = res.message;
-    } catch (e) { msg.textContent = e.message; }
-  };
-  document.getElementById("show-s").onclick = () => document.getElementById("s-box").classList.toggle("hidden");
-  document.getElementById("show-t").onclick = () => document.getElementById("t-box").classList.toggle("hidden");
-  document.getElementById("reg-s").onclick = async () => {
-    try { save(await api("/api/auth/register/student", { method: "POST", body: JSON.stringify({ fullName: val("s-name"), email: val("s-email"), password: val("s-password"), studentNumber: val("s-number"), room: val("s-room"), residenceId: val("s-res") }) })); render(); }
-    catch (e) { document.getElementById("s-error").textContent = e.message; }
-  };
-  document.getElementById("reg-t").onclick = async () => {
-    try { save(await api("/api/auth/register/staff", { method: "POST", body: JSON.stringify({ fullName: val("t-name"), email: val("t-email"), password: val("t-password"), staffId: val("t-staff"), accessCode: val("t-code"), role: val("t-role"), residenceId: val("t-res") }) })); render(); }
-    catch { document.getElementById("t-error").textContent = "Invalid access code or details."; }
-  };
+}
+
+function skeleton() {
+  return `<div class="skeleton">
+    <div class="sk" style="height:34px;width:min(320px,70%)"></div>
+    <div class="sk" style="height:150px"></div>
+    <div class="grid-3"><div class="sk" style="height:200px"></div><div class="sk" style="height:200px"></div><div class="sk" style="height:200px"></div></div>
+  </div>`;
 }
 
 async function draw() {
   const main = document.getElementById("main");
+  main.innerHTML = skeleton();
   try {
     const pages = { home, community, events, market, groups, maintenance, security, rewards, admin, profile, notifications };
     await (pages[state.page] || home)(main);
   } catch (e) {
     if (e instanceof SessionError || !state.user?.token) { render(); return; }
-    if (main) main.innerHTML = `<h1>Unable to load</h1><p class="error">${esc(e.message)}</p>`;
+    if (main) main.innerHTML = `${pageHead("Unable to load", "")}${emptyState("This page could not load", esc(e.message), "alert", "rose")}`;
   }
 }
 
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
+
+function bindRsvp(root, refresh) {
+  root.querySelectorAll(".rsvp").forEach(el => el.onclick = async () => {
+    const going = el.dataset.on !== "true";
+    await api(`/api/events/${el.dataset.id}/rsvp`, { method: going ? "POST" : "DELETE" });
+    toast(going ? "You're on the list." : "RSVP cancelled.");
+    refresh();
+  });
 }
 
 // Every role loads announcements; Security/Maintenance skip the community feed shortcuts.
@@ -280,34 +474,44 @@ async function home(main) {
   const tickets = ["Student", "Admin", "Maintenance"].includes(state.user.role) ? await api("/api/maintenance").catch(() => []) : [];
   const pending = tickets.filter(t => t.status !== "Resolved" && t.status !== "Cancelled").length;
   const first = dash.fullName.split(" ")[0];
+  if (dash.points !== state.user.points) { state.user.points = dash.points; save(state.user); }
   const actions = [
-    ["community", "New Post"], ["events", "Events"], ["market", "Marketplace"],
-    ["groups", "Study Groups"], ["maintenance", "Maintenance"], ["rewards", "Rewards"]
-  ].filter(a => (navByRole[state.user.role] || []).some(n => n[0] === a[0]));
+    ["community", "New post"], ["events", "Events"], ["market", "Marketplace"],
+    ["groups", "Study groups"], ["maintenance", "Report an issue"], ["rewards", "Rewards"], ["security", "Security"]
+  ].filter(a => (navByRole[state.user.role] || []).some(n => n[0] === a[0])).slice(0, 6);
   const canSeeFeed = ["Student", "Admin"].includes(state.user.role);
+  const a = dash.analytics;
+  const chips = state.user.role === "Student"
+    ? [["Points", dash.points, "gold"], ["Room", esc(state.user.room || "—"), ""], ["Open requests", pending, ""]]
+    : a ? [["Open tickets", a.openTickets, ""], ["Complaints", a.openComplaints, ""], ["Panic alerts", a.openEmergencies, a.openEmergencies ? "gold" : ""]]
+      : [["Points", dash.points, "gold"]];
+  const subtitle = {
+    Student: "Here's what's happening at your residence today.",
+    Admin: "Here's how the residence is doing today.",
+    Security: "Visitors, alerts and complaints waiting for the desk.",
+    Maintenance: "Requests waiting for your team."
+  }[state.user.role] || "";
+  const recent = posts.filter(p => p.kind !== "Announcement").slice(0, 3);
 
   main.innerHTML = `
-    <div class="date-line">${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</div>
-    <div class="page-head"><div><h1>${greeting()}, ${esc(first)}</h1><p>Here's what's happening at the residence today.</p></div></div>
-    <div class="banner">Welcome to ResLink! We're excited to launch your new digital residence hub. Explore events, connect with neighbours, and report issues all in one place.</div>
-    ${announcements.length ? `<div class="section-head"><h2>Announcements</h2></div>
-    ${announcements.map(p => `<div class="card mb"><div class="between"><b>${esc(p.title)}</b><span class="muted">${fmtDate(p.createdAt)}</span></div><p>${esc(p.body)}</p></div>`).join("")}` : ""}
-    <div class="stats">
-      <div class="stat-card"><span class="muted">Points</span><b>${dash.points}</b></div>
-      <div class="stat-card"><span class="muted">Room</span><b>${esc(state.user.room || "—")}</b></div>
-      <div class="stat-card"><span class="muted">Maintenance</span><b>${pending} Pending</b></div>
-    </div>
-    ${actions.length ? `<div class="section-head"><h2>Quick Actions</h2></div>
-    <div class="actions">${actions.map(a => `<button class="action" data-go="${a[0]}"><div class="ico">${icon(a[0])}</div>${a[1]}</button>`).join("")}</div>` : ""}
-    ${events.length ? `<div class="section-head"><h2>Upcoming Events</h2><button class="link" data-go="events">View all</button></div>
-    <div class="grid-3 mb">${events.slice(0, 3).map(eventCard).join("")}</div>` : ""}
-    ${canSeeFeed && posts.length ? `<div class="section-head"><h2>Recent Posts</h2><button class="link" data-go="community">View all</button></div>
-    <div class="card">${posts.filter(p => p.kind !== "Announcement").slice(0, 3).map(p => `<div class="feed-item"><div class="avatar">${initial(p.authorName)}</div><div><b>${esc(p.authorName)}</b> <span class="tag ${tagClass(p.authorRole)}">${esc(p.authorRole)}</span><p>${esc(p.body)}</p></div></div>`).join("")}</div>` : ""}
-    ${dash.analytics && state.user.role !== "Student" ? `<div class="section-head"><h2>Today's pulse</h2></div>
-    <div class="stats"><div class="stat-card"><span class="muted">Open tickets</span><b>${dash.analytics.openTickets}</b></div>
-    <div class="stat-card"><span class="muted">Complaints</span><b>${dash.analytics.openComplaints}</b></div>
-    <div class="stat-card"><span class="muted">Panic alerts</span><b>${dash.analytics.openEmergencies}</b></div></div>` : ""}`;
-  main.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { state.page = b.dataset.go; render(); });
+    <section class="hero">
+      <img class="hero-mark" src="brand/mark.png" alt="" />
+      <div>
+        <div class="date">${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div>
+        <h1>${greeting()}, ${esc(first)}</h1>
+        <p>${subtitle}</p>
+      </div>
+      <div class="hero-chips">${chips.map(([label, value, tint]) => `<div class="hero-chip ${tint}"><small>${label}</small><b>${value}</b></div>`).join("")}</div>
+    </section>
+    ${announcements.slice(0, 2).map(p => `<div class="notice"><span class="tile plum">${icon("notifications")}</span><div><b>${esc(p.title)}</b><p>${esc(p.body)}</p></div></div>`).join("")}
+    ${actions.length ? `<div class="section-head"><h2>Quick actions</h2></div>
+    <div class="actions">${actions.map(([id, label]) => `<button class="action" data-go="${id}"><span class="tile ${featureTint[id]}">${icon(id)}</span>${label}</button>`).join("")}</div>` : ""}
+    ${events.length ? `<div class="section-head"><h2>Upcoming events</h2><button class="link" data-go="events">View all</button></div>
+    <div class="grid-3">${events.slice(0, 3).map(eventCard).join("")}</div>` : ""}
+    ${canSeeFeed && recent.length ? `<div class="section-head"><h2>From the community</h2><button class="link" data-go="community">Open feed</button></div>
+    <div class="list">${recent.map(p => `<div class="list-row"><div class="avatar">${initial(p.authorName)}</div><div class="grow"><b>${esc(p.authorName)} <span class="tag ${tagClass(p.authorRole)}">${esc(p.authorRole)}</span></b><div class="muted">${esc(p.body)}</div></div><span class="muted small">${timeAgo(p.createdAt)}</span></div>`).join("")}</div>` : ""}`;
+  main.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { state.page = b.dataset.go; state.filter = "All"; render(); });
+  bindRsvp(main, () => home(main));
 }
 
 // Seeded events use saved stock photos so the cards do not depend on another host (Unsplash, 2026).
@@ -325,48 +529,63 @@ function eventPhoto(e) {
 }
 
 function eventCard(e) {
-  return `<div class="card" style="padding:0;overflow:hidden">
-    <img class="event-photo" src="${eventPhoto(e)}" alt="" />
-    <div class="event-body">
-      <span class="tag ${tagClass(e.category)}">${esc(e.category)}</span>
-      ${e.isFeatured ? ` <span class="tag yellow">Featured</span>` : ""}
-      <h3 style="margin:10px 0 6px">${esc(e.title)}</h3>
-      <p class="muted">${fmtDate(e.startsAt)}<br>${esc(e.location)} · ${e.rsvpCount} attending</p>
-      ${state.user.role === "Student" ? `<p><button class="btn rsvp" data-id="${e.id}" data-on="${e.hasRsvp}">${e.hasRsvp ? "Cancel RSVP" : "RSVP"}</button></p>` : ""}
-    </div></div>`;
+  const d = new Date(e.startsAt);
+  return `<article class="card flush hover">
+    <div class="media">
+      <img src="${eventPhoto(e)}" alt="" loading="lazy" />
+      <div class="tags"><span class="tag glass">${esc(e.category)}</span>${e.isFeatured ? `<span class="tag gold">Featured</span>` : ""}</div>
+      <div class="date-badge"><small>${d.toLocaleDateString(undefined, { month: "short" })}</small><b>${d.getDate()}</b></div>
+    </div>
+    <div class="body">
+      <h3>${esc(e.title)}</h3>
+      <div class="meta">
+        <span>${icon("clock")}${fmtDate(e.startsAt)}</span>
+        <span>${icon("pin")}${esc(e.location)}</span>
+        <span>${icon("groups")}${e.rsvpCount} attending</span>
+      </div>
+      ${state.user.role === "Student" ? `<div class="card-foot"><button class="btn wide ${e.hasRsvp ? "ghost" : ""} rsvp" data-id="${e.id}" data-on="${e.hasRsvp}">${e.hasRsvp ? "Cancel RSVP" : "RSVP"}</button></div>` : ""}
+    </div></article>`;
 }
 
 async function community(main) {
   const posts = await api("/api/posts");
   const filtered = state.filter === "All" ? posts : posts.filter(p => p.kind === state.filter);
   const canPost = ["Student", "Admin"].includes(state.user.role);
+  const kind = ["Post", "Discussion", "Poll"].includes(state.tab) ? state.tab : "Post";
   main.innerHTML = `
-    <div class="page-head"><div><h1>Community Feed</h1><p>Share updates and connect with residents.</p></div></div>
-    ${canPost ? `<div class="card mb">
-      <div class="composer-tabs">
-        <button class="pill ${state.tab === "Post" || state.tab === "overview" ? "active" : ""}" data-kind="Post">Post</button>
-        <button class="pill" data-kind="Discussion">Discussion</button>
-        <button class="pill" data-kind="Poll">Poll</button>
+    ${pageHead("Community", "Share updates, start discussions and run polls with your residence.")}
+    ${canPost ? `<div class="card composer mb">
+      <div class="post">
+        <div class="avatar">${initial(state.user.fullName)}</div>
+        <div class="grow stack">
+          <div class="row">${["Post", "Discussion", "Poll"].map(k => `<button class="pill ${kind === k ? "active" : ""}" data-kind="${k}">${k}</button>`).join("")}</div>
+          <input id="p-title" placeholder="Title (optional)" />
+          <textarea id="p-body" placeholder="What's on your mind, ${esc(state.user.fullName.split(" ")[0])}?"></textarea>
+          <label id="poll-opts" class="${kind === "Poll" ? "" : "hidden"}">Poll options, separated by commas<input id="p-opts" value="Braai, Movie night" /></label>
+          <div class="row" style="justify-content:flex-end"><button class="btn" id="share">Share</button></div>
+        </div>
       </div>
-      <input id="p-title" placeholder="Title (optional)" />
-      <textarea id="p-body" placeholder="What's on your mind, ${esc(state.user.fullName.split(" ")[0])}?"></textarea>
-      <div id="poll-opts" class="hidden"><label>Poll options<input id="p-opts" value="Braai, Movie night" /></label></div>
-      <p class="row" style="justify-content:flex-end"><button class="btn" id="share">Share</button></p>
     </div>` : ""}
-    <div class="pills">${["All", "Post", "Discussion", "Poll", "Announcement"].map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`).join("")}</div>
-    ${filtered.map(p => `<div class="card mb">
-      <div class="feed-item"><div class="avatar">${initial(p.authorName)}</div><div style="flex:1">
-        <b>${esc(p.authorName)}</b> <span class="tag ${tagClass(p.authorRole)}">${esc(p.authorRole)}</span>
-        <span class="tag gray">${esc(p.kind)}</span>
-        <div class="muted">${fmtDate(p.createdAt)}</div>
-        ${p.title ? `<h3 style="margin:8px 0 4px">${esc(p.title)}</h3>` : ""}
-        <p>${esc(p.body)}</p>
-        ${(p.pollOptions || []).map(o => `<div class="muted poll" data-id="${p.id}" data-i="${o.index}" style="cursor:pointer;margin:6px 0">${esc(o.label)} · ${o.votes}</div>`).join("")}
-        <div class="muted">♥ ${p.likeCount} · ${p.comments.length} comments</div>
-        ${p.comments.map(c => `<p class="muted">${esc(c.authorName)}: ${esc(c.body)}</p>`).join("")}
-        ${canPost ? `<div class="row"><input id="c-${p.id}" placeholder="Write a comment" /><button class="btn ghost comment" data-id="${p.id}">Reply</button></div>` : ""}
-        ${state.user.role === "Admin" || p.authorId === state.user.userId ? `<button class="btn ghost del" data-id="${p.id}">Remove</button>` : ""}
-      </div></div></div>`).join("")}`;
+    ${pills(["All", "Post", "Discussion", "Poll", "Announcement"].map(f => [f, f === "All" ? "All posts" : f + "s"]), state.filter)}
+    ${filtered.length ? filtered.map(p => {
+      const total = (p.pollOptions || []).reduce((sum, o) => sum + o.votes, 0);
+      return `<article class="card mb"><div class="post">
+        <div class="avatar">${initial(p.authorName)}</div>
+        <div class="grow">
+          <div class="post-head"><b>${esc(p.authorName)}</b><span class="tag ${tagClass(p.authorRole)}">${esc(p.authorRole)}</span>${p.kind !== "Post" ? `<span class="tag ${tagClass(p.kind)}">${esc(p.kind)}</span>` : ""}<span class="muted small">· ${timeAgo(p.createdAt)}</span></div>
+          ${p.title ? `<h3>${esc(p.title)}</h3>` : ""}
+          <p class="post-body">${esc(p.body)}</p>
+          ${(p.pollOptions || []).length ? `<div class="poll">${p.pollOptions.map(o => {
+            const pct = total ? Math.round(o.votes / total * 100) : 0;
+            return `<button class="poll-option vote" data-id="${p.id}" data-i="${o.index}"><i style="width:${pct}%"></i><span>${esc(o.label)}</span><span class="muted">${pct}% · ${o.votes}</span></button>`;
+          }).join("")}</div>` : ""}
+          <div class="post-stats"><span>${icon("heart")}${p.likeCount}</span><span>${icon("chat")}${p.comments.length} ${p.comments.length === 1 ? "comment" : "comments"}</span></div>
+          ${p.comments.length ? `<div class="comments">${p.comments.map(c => `<div><b>${esc(c.authorName)}</b> <span class="muted">${esc(c.body)}</span></div>`).join("")}</div>` : ""}
+          ${canPost ? `<div class="reply"><input id="c-${p.id}" placeholder="Write a reply" /><button class="btn ghost comment" data-id="${p.id}">Reply</button></div>` : ""}
+          ${state.user.role === "Admin" || p.authorId === state.user.userId ? `<div style="margin-top:10px"><button class="link del" data-id="${p.id}" style="color:var(--rose)">Remove post</button></div>` : ""}
+        </div>
+      </div></article>`;
+    }).join("") : emptyState("Nothing here yet", "Be the first to post in this category.", "community")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; community(main); });
   main.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => {
     state.tab = b.dataset.kind;
@@ -375,41 +594,61 @@ async function community(main) {
   });
   const share = document.getElementById("share");
   if (share) share.onclick = async () => {
-    await api("/api/posts", { method: "POST", body: JSON.stringify({ title: val("p-title") || "Update", body: val("p-body"), kind: state.tab === "overview" ? "Post" : state.tab, isPoll: state.tab === "Poll", pollOptions: val("p-opts").split(",").map(s => s.trim()) }) });
+    if (!val("p-body").trim()) { toast("Write something before sharing.", "error"); return; }
+    const k = ["Post", "Discussion", "Poll"].includes(state.tab) ? state.tab : "Post";
+    await api("/api/posts", { method: "POST", body: JSON.stringify({ title: val("p-title") || "Update", body: val("p-body"), kind: k, isPoll: k === "Poll", pollOptions: val("p-opts").split(",").map(s => s.trim()) }) });
+    toast("Shared with your residence.");
     community(main);
   };
-  main.querySelectorAll(".poll").forEach(el => el.onclick = async () => { await api(`/api/posts/${el.dataset.id}/vote`, { method: "POST", body: JSON.stringify({ optionIndex: Number(el.dataset.i) }) }); community(main); });
-  main.querySelectorAll(".comment").forEach(el => el.onclick = async () => { await api(`/api/posts/${el.dataset.id}/comments`, { method: "POST", body: JSON.stringify({ body: val(`c-${el.dataset.id}`) }) }); community(main); });
-  main.querySelectorAll(".del").forEach(el => el.onclick = async () => { await api(`/api/posts/${el.dataset.id}`, { method: "DELETE" }); community(main); });
+  main.querySelectorAll(".vote").forEach(el => el.onclick = async () => { await api(`/api/posts/${el.dataset.id}/vote`, { method: "POST", body: JSON.stringify({ optionIndex: Number(el.dataset.i) }) }); community(main); });
+  main.querySelectorAll(".comment").forEach(el => el.onclick = async () => {
+    if (!val(`c-${el.dataset.id}`).trim()) return;
+    await api(`/api/posts/${el.dataset.id}/comments`, { method: "POST", body: JSON.stringify({ body: val(`c-${el.dataset.id}`) }) });
+    community(main);
+  });
+  main.querySelectorAll(".del").forEach(el => el.onclick = async () => { await api(`/api/posts/${el.dataset.id}`, { method: "DELETE" }); toast("Post removed."); community(main); });
 }
 
 async function events(main) {
   const items = await api("/api/events");
   const filtered = state.filter === "All" ? items : items.filter(e => e.category === state.filter);
   main.innerHTML = `
-    <div class="page-head"><div><h1>Events</h1><p>Discover and join residence events.</p></div>
-      ${state.user.role === "Admin" ? `<button class="btn" id="toggle-create">+ Create Event</button>` : ""}</div>
-    <div class="card hidden mb" id="create-box">
-      <label>Title<input id="e-title" /></label><label>Description<input id="e-desc" /></label>
-      <label>Location<input id="e-loc" /></label><label>Starts at<input id="e-when" value="2026-08-20T17:00:00Z" /></label>
-      <label>Category<select id="e-cat"><option>Social</option><option>Academic</option><option>Sports</option><option>Cultural</option><option>Meeting</option><option>Other</option></select></label>
-      <button class="btn" id="create-event">Publish event</button>
+    ${pageHead("Events", "Discover what's on and save your spot.", state.user.role === "Admin" ? toggleBtn("toggle-create", "Create event") : "")}
+    <div class="card form-card hidden" id="create-box">
+      <h3>New event</h3>
+      <div class="form-grid">
+        <label class="full">Title<input id="e-title" /></label>
+        <label class="full">Description<textarea id="e-desc"></textarea></label>
+        <label>Location<input id="e-loc" /></label>
+        <label>Starts at<input id="e-when" type="datetime-local" /></label>
+        <label>Category<select id="e-cat"><option>Social</option><option>Academic</option><option>Sports</option><option>Cultural</option><option>Meeting</option><option>Other</option></select></label>
+      </div>
+      <div class="form-actions"><button class="btn ghost" data-cancel="create-box">Cancel</button><button class="btn" id="create-event">Publish event</button></div>
     </div>
-    <div class="pills">${["All", "Social", "Academic", "Sports", "Cultural", "Meeting", "Other"].map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`).join("")}</div>
-    <div class="grid-3">${filtered.map(eventCard).join("")}</div>`;
+    ${pills(["All", "Social", "Academic", "Sports", "Cultural", "Meeting", "Other"].map(f => [f, f === "All" ? "All events" : f]), state.filter)}
+    ${filtered.length ? `<div class="grid-3">${filtered.map(eventCard).join("")}</div>` : emptyState("No events here yet", "Check back soon or try another category.", "events", "sky")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; events(main); });
-  const toggle = document.getElementById("toggle-create");
-  if (toggle) toggle.onclick = () => document.getElementById("create-box").classList.toggle("hidden");
+  bindToggles(main, { "toggle-create": "create-box" });
   const create = document.getElementById("create-event");
   if (create) create.onclick = async () => {
-    await api("/api/events", { method: "POST", body: JSON.stringify({ title: val("e-title"), description: val("e-desc"), location: val("e-loc"), startsAt: val("e-when"), category: val("e-cat") }) });
+    if (!val("e-title").trim() || !val("e-when")) { toast("Add a title and a start time.", "error"); return; }
+    await api("/api/events", { method: "POST", body: JSON.stringify({ title: val("e-title"), description: val("e-desc"), location: val("e-loc"), startsAt: new Date(val("e-when")).toISOString(), category: val("e-cat") }) });
+    toast("Event published.");
     events(main);
   };
-  main.querySelectorAll(".rsvp").forEach(el => el.onclick = async () => {
-    await api(`/api/events/${el.dataset.id}/rsvp`, { method: el.dataset.on === "true" ? "DELETE" : "POST" });
-    events(main);
-  });
+  bindRsvp(main, () => events(main));
 }
+
+function bindToggles(root, map) {
+  Object.entries(map).forEach(([buttonId, boxId]) => {
+    const button = document.getElementById(buttonId);
+    if (button) button.onclick = () => { document.getElementById(boxId).classList.toggle("hidden"); document.getElementById(boxId).querySelector("input,textarea")?.focus(); };
+  });
+  root.querySelectorAll("[data-cancel]").forEach(b => b.onclick = () => document.getElementById(b.dataset.cancel).classList.add("hidden"));
+}
+
+const marketTint = { Textbooks: "plum", Electronics: "sky", Furniture: "gold", Clothing: "rose", Food: "leaf", Services: "slate" };
+const marketIcon = { Textbooks: "book", Electronics: "sparkle", Food: "rewards", Services: "maintenance" };
 
 // Marketplace, groups, and tickets expose undo so a lecturer tap is not final; reward redemptions are final.
 async function market(main) {
@@ -417,30 +656,37 @@ async function market(main) {
   const filtered = state.filter === "All" ? items : items.filter(i => i.category === state.filter);
   const sell = state.user.role === "Student";
   main.innerHTML = `
-    <div class="page-head"><div><h1>Marketplace</h1><p>Buy, sell and trade with fellow residents.</p></div>
-      ${sell ? `<button class="btn" id="toggle-sell">+ Sell Item</button>` : ""}</div>
-    <div class="card hidden mb" id="sell-box">
-      <label>Item<input id="m-title" /></label><label>Description<input id="m-desc" /></label>
-      <label>Category<select id="m-cat"><option>Textbooks</option><option>Electronics</option><option>Furniture</option><option>Clothing</option><option>Food</option><option>Services</option><option>Other</option></select></label>
-      <label>Condition<select id="m-cond"><option>Like New</option><option>Good</option><option>Fair</option></select></label>
-      <label>Price (R)<input id="m-price" type="number" value="150" /></label>
-      <button class="btn" id="list-item">List item</button>
+    ${pageHead("Marketplace", "Buy, sell and swap with people in your residence.", sell ? toggleBtn("toggle-sell", "Sell an item") : "")}
+    <div class="card form-card hidden" id="sell-box">
+      <h3>List an item</h3>
+      <div class="form-grid">
+        <label class="full">Item<input id="m-title" placeholder="e.g. Calculus textbook" /></label>
+        <label class="full">Description<textarea id="m-desc"></textarea></label>
+        <label>Category<select id="m-cat"><option>Textbooks</option><option>Electronics</option><option>Furniture</option><option>Clothing</option><option>Food</option><option>Services</option><option>Other</option></select></label>
+        <label>Condition<select id="m-cond"><option>Like New</option><option>Good</option><option>Fair</option></select></label>
+        <label>Price (R)<input id="m-price" type="number" min="0" value="150" /></label>
+      </div>
+      <div class="form-actions"><button class="btn ghost" data-cancel="sell-box">Cancel</button><button class="btn" id="list-item">List item</button></div>
     </div>
-    <div class="pills">${["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Food", "Services", "Other"].map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`).join("")}</div>
-    <div class="grid-3">${filtered.map(i => `<div class="card" style="padding:0;overflow:hidden">
-      <div class="event-art">${icon("market")}</div>
-      <div class="event-body">
-        <div class="between"><h3 style="margin:0">${esc(i.title)}</h3><span class="price">${i.price === 0 ? "FREE" : "R" + i.price}</span></div>
-        <p class="muted">${esc(i.description)}</p>
-        <p><span class="tag ${tagClass(i.condition)}">${esc(i.condition)}</span> <span class="tag gray">${esc(i.category)}</span></p>
-        <p class="muted">${esc(i.sellerName)}${i.sellerRoom ? " · Room " + esc(i.sellerRoom) : ""}</p>
-        ${sell && !i.isSold ? `<button class="btn ghost sold" data-id="${i.id}">Mark sold</button>` : ""}
-        ${sell && i.isSold ? `<button class="btn ghost unsold" data-id="${i.id}">Mark available</button>` : ""}
-      </div></div>`).join("")}</div>`;
+    ${pills(["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Food", "Services", "Other"].map(f => [f, f === "All" ? "Everything" : f]), state.filter)}
+    ${filtered.length ? `<div class="grid-3">${filtered.map(i => {
+      const mine = i.sellerId === state.user.userId || state.user.role === "Admin";
+      return `<article class="card flush hover">
+        <div class="media-art ${marketTint[i.category] || "slate"}">${icon(marketIcon[i.category] || "market")}</div>
+        <div class="body">
+          <div class="between"><h3>${esc(i.title)}</h3><span class="price">${i.price === 0 ? "Free" : "R" + i.price}</span></div>
+          <p class="muted small">${esc(i.description)}</p>
+          <div class="tags"><span class="tag ${tagClass(i.condition)}">${esc(i.condition)}</span><span class="tag slate">${esc(i.category)}</span>${i.isSold ? `<span class="tag rose">Sold</span>` : ""}</div>
+          <div class="meta"><span>${icon("profile")}${esc(i.sellerName)}${i.sellerRoom ? " · Room " + esc(i.sellerRoom) : ""}</span></div>
+          ${sell && mine ? `<div class="card-foot">${i.isSold ? `<button class="btn ghost sm unsold" data-id="${i.id}">Mark available</button>` : `<button class="btn soft sm sold" data-id="${i.id}">${icon("check")}Mark sold</button>`}</div>` : ""}
+        </div></article>`;
+    }).join("")}</div>` : emptyState("No listings yet", "List something you no longer need.", "market", "plum")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; market(main); });
-  const t = document.getElementById("toggle-sell"); if (t) t.onclick = () => document.getElementById("sell-box").classList.toggle("hidden");
+  bindToggles(main, { "toggle-sell": "sell-box" });
   const l = document.getElementById("list-item"); if (l) l.onclick = async () => {
+    if (!val("m-title").trim()) { toast("Give the item a name.", "error"); return; }
     await api("/api/marketplace", { method: "POST", body: JSON.stringify({ title: val("m-title"), description: val("m-desc"), category: val("m-cat"), condition: val("m-cond"), price: Number(val("m-price")) }) });
+    toast("Your item is listed.");
     market(main);
   };
   main.querySelectorAll(".sold").forEach(el => el.onclick = async () => { await api(`/api/marketplace/${el.dataset.id}/sold`, { method: "PUT" }); market(main); });
@@ -451,32 +697,35 @@ async function groups(main) {
   const items = await api("/api/study-groups");
   const mine = state.filter === "Mine" ? items.filter(g => g.isMember) : items;
   main.innerHTML = `
-    <div class="page-head"><div><h1>Study Groups</h1><p>Collaborate with fellow residents on your courses.</p></div>
-      ${state.user.role === "Student" || state.user.role === "Admin" ? `<button class="btn" id="toggle-g">+ Create Group</button>` : ""}</div>
-    <div class="card hidden mb" id="g-box">
-      <label>Name<input id="g-name" /></label><label>Topic<input id="g-topic" /></label><label>Course code<input id="g-code" /></label>
-      <label>Description<input id="g-desc" /></label><label>Schedule<input id="g-sch" /></label><label>Location<input id="g-loc" /></label>
-      <button class="btn" id="g-create">Create group</button>
+    ${pageHead("Study Groups", "Find people taking the same courses and study together.", state.user.role === "Student" || state.user.role === "Admin" ? toggleBtn("toggle-g", "Create group") : "")}
+    <div class="card form-card hidden" id="g-box">
+      <h3>New study group</h3>
+      <div class="form-grid">
+        <label>Name<input id="g-name" /></label><label>Course code<input id="g-code" placeholder="e.g. INSY7231" /></label>
+        <label class="full">Topic<input id="g-topic" /></label>
+        <label class="full">Description<textarea id="g-desc"></textarea></label>
+        <label>Schedule<input id="g-sch" placeholder="Tuesdays 18:00" /></label><label>Location<input id="g-loc" /></label>
+      </div>
+      <div class="form-actions"><button class="btn ghost" data-cancel="g-box">Cancel</button><button class="btn" id="g-create">Create group</button></div>
     </div>
-    <div class="pills">
-      <button class="pill ${state.filter !== "Mine" ? "active" : ""}" data-filter="All">All Groups</button>
-      <button class="pill ${state.filter === "Mine" ? "active" : ""}" data-filter="Mine">My Groups (${items.filter(g => g.isMember).length})</button>
-    </div>
-    <div class="grid-3">${mine.map(g => `<div class="card">
-      <div class="icon-box">${icon("groups")}</div>
-      <div class="muted">${esc(g.topic)} · ${esc(g.courseCode)}</div>
-      <h3>${esc(g.name)}</h3>
-      <p class="muted">${esc(g.description)}</p>
-      <p class="muted">${esc(g.schedule)}<br>${esc(g.location)}<br>${g.memberCount}/${g.maxMembers} members</p>
-      ${g.isMember ? `<div class="row"><span class="tag green">Member</span><button class="btn ghost leave" data-id="${g.id}">Leave</button></div>` : `<button class="btn join" data-id="${g.id}">Join</button>`}
-    </div>`).join("")}</div>`;
+    ${pills([["All", "All groups"], ["Mine", `My groups <span class="count">${items.filter(g => g.isMember).length}</span>`]], state.filter === "Mine" ? "Mine" : "All")}
+    ${mine.length ? `<div class="grid-3">${mine.map(g => `<article class="card hover" style="display:flex;flex-direction:column;gap:10px">
+      <div class="between"><span class="tile leaf">${icon("book")}</span><span class="tag plum">${esc(g.courseCode)}</span></div>
+      <div><h3>${esc(g.name)}</h3><p class="muted small">${esc(g.topic)}</p></div>
+      <p class="small" style="color:var(--ink-2)">${esc(g.description)}</p>
+      <div class="meta"><span>${icon("clock")}${esc(g.schedule)}</span><span>${icon("pin")}${esc(g.location)}</span></div>
+      <div><div class="between small muted" style="margin-bottom:6px"><span>Members</span><span>${g.memberCount}/${g.maxMembers}</span></div><div class="progress"><i style="width:${Math.min(100, Math.round(g.memberCount / Math.max(1, g.maxMembers) * 100))}%"></i></div></div>
+      <div class="card-foot">${g.isMember ? `<span class="tag leaf dot">Member</span><button class="btn ghost sm leave" data-id="${g.id}">Leave</button>` : `<button class="btn wide join" data-id="${g.id}">Join group</button>`}</div>
+    </article>`).join("")}</div>` : emptyState(state.filter === "Mine" ? "You haven't joined a group yet" : "No study groups yet", "Create one and invite your classmates.", "groups")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; groups(main); });
-  const tg = document.getElementById("toggle-g"); if (tg) tg.onclick = () => document.getElementById("g-box").classList.toggle("hidden");
+  bindToggles(main, { "toggle-g": "g-box" });
   const c = document.getElementById("g-create"); if (c) c.onclick = async () => {
+    if (!val("g-name").trim()) { toast("Give the group a name.", "error"); return; }
     await api("/api/study-groups", { method: "POST", body: JSON.stringify({ name: val("g-name"), topic: val("g-topic"), description: val("g-desc"), courseCode: val("g-code"), schedule: val("g-sch"), location: val("g-loc") }) });
+    toast("Study group created.");
     groups(main);
   };
-  main.querySelectorAll(".join").forEach(el => el.onclick = async () => { await api(`/api/study-groups/${el.dataset.id}/join`, { method: "POST" }); groups(main); });
+  main.querySelectorAll(".join").forEach(el => el.onclick = async () => { await api(`/api/study-groups/${el.dataset.id}/join`, { method: "POST" }); toast("You joined the group."); groups(main); });
   main.querySelectorAll(".leave").forEach(el => el.onclick = async () => { await api(`/api/study-groups/${el.dataset.id}/leave`, { method: "DELETE" }); groups(main); });
 }
 
@@ -486,34 +735,44 @@ async function maintenance(main) {
   const filtered = tickets.filter(map[state.filter] || map.All);
   const student = state.user.role === "Student";
   const staff = ["Maintenance", "Admin"].includes(state.user.role);
+  const count = f => tickets.filter(map[f]).length;
   main.innerHTML = `
-    <div class="page-head"><div><h1>Maintenance</h1><p>${staff ? "Manage maintenance requests" : "Report and track residence issues"}.</p></div>
-      ${student ? `<button class="btn" id="toggle-t">+ New request</button>` : ""}</div>
-    <div class="card hidden mb" id="t-box">
-      <label>Issue<input id="t-title" /></label><label>Details<textarea id="t-desc"></textarea></label>
-      <label>Location<input id="t-loc" /></label>
-      <label>Category<select id="t-cat"><option>Plumbing</option><option>Electrical</option><option>Furniture</option><option>General</option></select></label>
-      <label>Priority<select id="t-pri"><option>Medium</option><option>High</option><option>Low</option></select></label>
-      <button class="btn" id="new-ticket">Submit</button>
+    ${pageHead("Maintenance", staff ? "Work through requests from residents." : "Report an issue and follow it until it's fixed.", student ? toggleBtn("toggle-t", "New request") : "")}
+    <div class="card form-card hidden" id="t-box">
+      <h3>Report an issue</h3>
+      <div class="form-grid">
+        <label class="full">What's wrong?<input id="t-title" placeholder="e.g. Leaking tap in bathroom" /></label>
+        <label class="full">Details<textarea id="t-desc"></textarea></label>
+        <label class="full">Location<input id="t-loc" value="${esc(state.user.room ? "Room " + state.user.room : "")}" /></label>
+        <label>Category<select id="t-cat"><option>Plumbing</option><option>Electrical</option><option>Furniture</option><option>General</option></select></label>
+        <label>Priority<select id="t-pri"><option>Medium</option><option>High</option><option>Low</option></select></label>
+      </div>
+      <div class="form-actions"><button class="btn ghost" data-cancel="t-box">Cancel</button><button class="btn" id="new-ticket">Submit request</button></div>
     </div>
-    <div class="pills">${["All", "Pending", "In Progress", "Resolved", "Cancelled"].map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`).join("")}</div>
-    ${filtered.map(t => `<div class="card mb">
-      <div class="between"><h3 style="margin:0">${esc(t.title)}</h3><div><span class="tag ${tagClass(prettyStatus(t.status))}">${prettyStatus(t.status)}</span> <span class="tag ${tagClass(t.priority)}">${esc(t.priority)}</span> <span class="muted">${esc(t.category)}</span></div></div>
-      <p class="muted">${esc(t.reporterName)} · ${esc(t.location)} · ${fmtDate(t.createdAt)}</p>
-      <p>${esc(t.description)}</p>
-      ${t.resolutionNotes ? `<p class="muted">Notes: ${esc(t.resolutionNotes)}</p>` : ""}
-      ${staff ? `<div class="row">
-        ${t.status !== "Open" ? `<button class="btn ghost st" data-id="${t.id}" data-s="Open">Reopen</button>` : ""}
-        ${t.status === "Open" ? `<button class="btn blue st" data-id="${t.id}" data-s="InProgress">Start Work</button>` : ""}
-        ${t.status !== "Resolved" ? `<button class="btn ghost st" data-id="${t.id}" data-s="Resolved">Mark Resolved</button>` : ""}
-        <button class="btn ghost st" data-id="${t.id}" data-s="Cancelled">Cancel</button>
-      </div>` : ""}
-      ${student && t.status === "Open" ? `<button class="btn ghost cancel-t" data-id="${t.id}">Cancel request</button>` : ""}
-    </div>`).join("")}`;
+    ${pills(["All", "Pending", "In Progress", "Resolved", "Cancelled"].map(f => [f, `${f}<span class="count">${count(f)}</span>`]), state.filter)}
+    ${filtered.length ? `<div class="list">${filtered.map(t => `<div class="list-row" style="align-items:flex-start">
+      <span class="tile gold">${icon("maintenance")}</span>
+      <div class="grow">
+        <div class="tags" style="margin-bottom:6px"><b style="margin-right:4px">${esc(t.title)}</b><span class="tag dot ${tagClass(prettyStatus(t.status))}">${prettyStatus(t.status)}</span><span class="tag ${tagClass(t.priority)}">${esc(t.priority)}</span></div>
+        <div class="muted">${esc(t.category)} · ${esc(t.location)} · ${esc(t.reporterName)} · ${timeAgo(t.createdAt)}</div>
+        ${t.description ? `<p class="small" style="margin-top:6px;color:var(--ink-2)">${esc(t.description)}</p>` : ""}
+        ${t.resolutionNotes ? `<p class="small muted" style="margin-top:4px">Notes: ${esc(t.resolutionNotes)}</p>` : ""}
+      </div>
+      <div class="end">
+        ${staff ? `
+          ${t.status === "Open" ? `<button class="btn sm st" data-id="${t.id}" data-s="InProgress">Start work</button>` : ""}
+          ${t.status !== "Resolved" ? `<button class="btn soft sm st" data-id="${t.id}" data-s="Resolved">${icon("check")}Resolve</button>` : ""}
+          ${t.status !== "Open" ? `<button class="btn ghost sm st" data-id="${t.id}" data-s="Open">Reopen</button>` : ""}
+          ${t.status !== "Cancelled" ? `<button class="btn ghost sm st" data-id="${t.id}" data-s="Cancelled">Cancel</button>` : ""}` : ""}
+        ${student && t.status === "Open" ? `<button class="btn ghost sm cancel-t" data-id="${t.id}">Cancel request</button>` : ""}
+      </div>
+    </div>`).join("")}</div>` : emptyState("No requests here", student ? "Everything working? Great. Report an issue any time." : "Nothing waiting in this list.", "maintenance", "gold")}`;
   main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; maintenance(main); });
-  const tt = document.getElementById("toggle-t"); if (tt) tt.onclick = () => document.getElementById("t-box").classList.toggle("hidden");
+  bindToggles(main, { "toggle-t": "t-box" });
   const nt = document.getElementById("new-ticket"); if (nt) nt.onclick = async () => {
+    if (!val("t-title").trim()) { toast("Describe the issue first.", "error"); return; }
     await api("/api/maintenance", { method: "POST", body: JSON.stringify({ title: val("t-title"), description: val("t-desc"), location: val("t-loc"), category: val("t-cat"), priority: val("t-pri") }) });
+    toast("Request sent to maintenance.");
     maintenance(main);
   };
   main.querySelectorAll(".st").forEach(el => el.onclick = async () => {
@@ -531,31 +790,59 @@ async function security(main) {
     const mineAlerts = await api("/api/emergencies/mine").catch(() => []);
     const mineNoise = await api("/api/noise/mine").catch(() => []);
     main.innerHTML = `
-      <div class="page-head"><div><h1>Security</h1><p>Report a visitor, noise issue, or emergency.</p></div></div>
-      <div class="grid-2">
-        <div class="card"><h3>Panic button</h3><p class="muted">Security gets your room ${esc(state.user.room || "")} and, if you allow it, your live location.</p><button class="btn danger" id="panic">Send panic alert</button><p id="p-msg"></p></div>
-        <div class="card"><h3>Noise complaint</h3>
-          <label>Location<input id="n-loc" /></label><label>What is happening?<input id="n-desc" /></label>
-          <label><input id="n-anon" type="checkbox" checked /> Report anonymously</label>
-          <button class="btn" id="n-send">Submit complaint</button><p id="n-msg"></p></div>
-        <div class="card"><h3>Register a visitor</h3>
-          <label>Visitor name<input id="v-name" /></label><label>Your room<input id="v-room" value="${esc(state.user.room || "")}" /></label>
-          <label>Purpose<input id="v-purpose" /></label><button class="btn" id="v-send">Register visitor</button><p id="v-msg"></p></div>
+      ${pageHead("Security", "Get help fast, report noise, or let the desk know a visitor is coming.")}
+      <div class="split">
+        <div class="card panic-card">
+          <span class="tile rose">${icon("alert")}</span>
+          <h2 style="margin-top:14px;font-size:22px">Panic button</h2>
+          <p class="muted" style="margin-top:6px">Security gets your name, room ${esc(state.user.room || "")} and, if you allow it, your live location.</p>
+          <button class="panic-btn" id="panic">${icon("alert")}Send panic alert</button>
+          <ol class="steps">
+            <li><span><b>The desk is alerted at once.</b>Your alert opens at the top of the security queue.</span></li>
+            <li><span><b>Your location goes with it.</b>Allow location when asked so officers can find you outside your room.</span></li>
+            <li><span><b>Pressed it by mistake?</b>Mark it as a false alarm below and the desk is told.</span></li>
+          </ol>
+        </div>
+        <div class="stack">
+          <div class="card"><h3 style="margin-bottom:14px">Noise complaint</h3><div class="stack">
+            <label>Location<input id="n-loc" placeholder="e.g. Block C, 2nd floor" /></label><label>What is happening?<input id="n-desc" /></label>
+            <label class="check"><input id="n-anon" type="checkbox" checked /> Report anonymously</label>
+            <div><button class="btn" id="n-send">Submit complaint</button></div></div></div>
+          <div class="card"><h3 style="margin-bottom:14px">Register a visitor</h3><div class="form-grid">
+            <label>Visitor name<input id="v-name" /></label><label>Your room<input id="v-room" value="${esc(state.user.room || "")}" /></label>
+            <label class="full">Purpose<input id="v-purpose" placeholder="e.g. Study session" /></label></div>
+            <div class="form-actions" style="justify-content:flex-start"><button class="btn" id="v-send">Register visitor</button></div></div>
+        </div>
       </div>
-      ${mineAlerts.length ? `<div class="section-head"><h2>Your panic alerts</h2></div>
-        ${mineAlerts.map(a => `<div class="card mb between"><div><b>${esc(a.status)}</b><div class="muted">${esc(a.location)} · ${fmtDate(a.createdAt)}</div></div>
-        ${a.status === "Open" ? `<button class="btn ghost wd-em" data-id="${a.id}">False alarm</button>` : ""}</div>`).join("")}` : ""}
-      ${mineNoise.length ? `<div class="section-head"><h2>Your noise reports</h2></div>
-        ${mineNoise.map(n => `<div class="card mb between"><div><b>${esc(n.location)}</b><div class="muted">${esc(n.status)} · ${fmtDate(n.createdAt)}</div></div>
-        ${n.status === "Open" ? `<button class="btn ghost wd-ns" data-id="${n.id}">Withdraw</button>` : ""}</div>`).join("")}` : ""}`;
-    document.getElementById("panic").onclick = async () => {
-      document.getElementById("p-msg").textContent = "Sending alert…";
+      ${mineAlerts.length ? `<div class="section-head"><h2>Your panic alerts</h2></div><div class="list">
+        ${mineAlerts.map(a => `<div class="list-row"><span class="tile rose">${icon("alert")}</span><div class="grow"><b>${esc(a.location)}</b><div class="muted">${fmtDate(a.createdAt)}</div></div>
+        <div class="end"><span class="tag dot ${a.status === "Open" ? "rose" : tagClass(a.status)}">${prettyStatus(a.status)}</span>${a.status === "Open" ? `<button class="btn ghost sm wd-em" data-id="${a.id}">False alarm</button>` : ""}</div></div>`).join("")}</div>` : ""}
+      ${mineNoise.length ? `<div class="section-head"><h2>Your noise reports</h2></div><div class="list">
+        ${mineNoise.map(n => `<div class="list-row"><span class="tile slate">${icon("notifications")}</span><div class="grow"><b>${esc(n.location)}</b><div class="muted">${fmtDate(n.createdAt)}</div></div>
+        <div class="end"><span class="tag dot ${tagClass(prettyStatus(n.status))}">${prettyStatus(n.status)}</span>${n.status === "Open" ? `<button class="btn ghost sm wd-ns" data-id="${n.id}">Withdraw</button>` : ""}</div></div>`).join("")}</div>` : ""}`;
+    document.getElementById("panic").onclick = async e => {
+      const button = e.currentTarget;
+      button.disabled = true;
+      button.textContent = "Getting your location…";
       const coords = await currentPosition();
-      await api("/api/emergencies", { method: "POST", body: JSON.stringify({ message: "Panic button activated", latitude: coords?.latitude ?? null, longitude: coords?.longitude ?? null }) });
+      button.textContent = "Sending alert…";
+      try {
+        await api("/api/emergencies", { method: "POST", body: JSON.stringify({ message: "Panic button activated", latitude: coords?.latitude ?? null, longitude: coords?.longitude ?? null }) });
+        toast(coords ? "Alert sent with your location. Security is on the way." : "Alert sent with your room. Security is on the way.");
+      } finally { security(main); }
+    };
+    document.getElementById("n-send").onclick = async () => {
+      if (!val("n-loc").trim()) { toast("Add where the noise is.", "error"); return; }
+      await api("/api/noise", { method: "POST", body: JSON.stringify({ location: val("n-loc"), description: val("n-desc"), isAnonymous: document.getElementById("n-anon").checked }) });
+      toast("Complaint sent to security.");
       security(main);
     };
-    document.getElementById("n-send").onclick = async () => { await api("/api/noise", { method: "POST", body: JSON.stringify({ location: val("n-loc"), description: val("n-desc"), isAnonymous: document.getElementById("n-anon").checked }) }); security(main); };
-    document.getElementById("v-send").onclick = async () => { await api("/api/visitors", { method: "POST", body: JSON.stringify({ visitorName: val("v-name"), hostRoom: val("v-room"), purpose: val("v-purpose") }) }); document.getElementById("v-msg").textContent = "Visitor registered."; };
+    document.getElementById("v-send").onclick = async () => {
+      if (!val("v-name").trim()) { toast("Add the visitor's name.", "error"); return; }
+      await api("/api/visitors", { method: "POST", body: JSON.stringify({ visitorName: val("v-name"), hostRoom: val("v-room"), purpose: val("v-purpose") }) });
+      toast("Visitor registered with the desk.");
+      ["v-name", "v-purpose"].forEach(id => document.getElementById(id).value = "");
+    };
     main.querySelectorAll(".wd-em").forEach(el => el.onclick = async () => { await api(`/api/emergencies/${el.dataset.id}/withdraw`, { method: "PUT" }); security(main); });
     main.querySelectorAll(".wd-ns").forEach(el => el.onclick = async () => { await api(`/api/noise/${el.dataset.id}/withdraw`, { method: "PUT" }); security(main); });
     return;
@@ -564,318 +851,242 @@ async function security(main) {
   const alerts = await api("/api/emergencies");
   const noise = await api("/api/noise");
   const tab = state.tab === "incidents" ? "incidents" : "visitors";
+  const openIncidents = alerts.filter(a => a.status === "Open").length + noise.filter(n => n.status === "Open").length;
   main.innerHTML = `
-    <div class="page-head"><div><h1>Security</h1><p>Manage visitors, incidents and access logs.</p></div>
-      <button class="btn" id="toggle-v">+ Register Visitor</button></div>
-    <div class="card hidden mb" id="v-box">
-      <label>Visitor name<input id="v-name" /></label><label>Host room<input id="v-room" /></label><label>Purpose<input id="v-purpose" /></label>
-      <button class="btn" id="v-send">Register</button>
+    ${pageHead("Security desk", "Visitors, panic alerts and noise complaints for the residence.", toggleBtn("toggle-v", "Register visitor"))}
+    <div class="card form-card hidden" id="v-box">
+      <h3>Register a visitor</h3>
+      <div class="form-grid"><label>Visitor name<input id="v-name" /></label><label>Host room<input id="v-room" /></label><label class="full">Purpose<input id="v-purpose" /></label></div>
+      <div class="form-actions"><button class="btn ghost" data-cancel="v-box">Cancel</button><button class="btn" id="v-send">Register</button></div>
     </div>
-    <div class="pills">
-      <button class="pill ${tab === "visitors" ? "active" : ""}" data-tab="visitors">Visitors</button>
-      <button class="pill ${tab === "incidents" ? "active" : ""}" data-tab="incidents">Incidents</button>
-    </div>
-    ${tab === "visitors" ? (visitors.length ? visitors.map(v => `<div class="card mb between"><div><b>${esc(v.visitorName)}</b><div class="muted">Host ${esc(v.hostName)} · ${esc(v.hostRoom)} · ${esc(v.purpose)}</div></div>
-        <div>${v.status === "OnSite" ? `<button class="btn ghost v-out" data-id="${v.id}">Check out</button>` : `<span class="tag gray">${esc(v.status)}</span>`}</div></div>`).join("") : `<div class="empty">No visitors logged today</div>`)
-      : `${alerts.map(a => `<div class="card mb"><div class="between"><b>${esc(a.reporterName)}</b><span class="tag ${tagClass(prettyStatus(a.status))}">${prettyStatus(a.status)}</span></div><p class="muted">${esc(a.location)}${mapLink(a)}</p><p>${esc(a.message)}</p>
-        ${a.status !== "Open" ? `<button class="btn ghost em" data-id="${a.id}" data-s="Open">Reopen</button>` : ""}
-        <button class="btn ghost em" data-id="${a.id}" data-s="Acknowledged">Acknowledge</button>
-        <button class="btn ghost em" data-id="${a.id}" data-s="Resolved">Resolve</button>
-        <button class="btn ghost em" data-id="${a.id}" data-s="Withdrawn">False alarm</button></div>`).join("")}
-        ${noise.map(n => `<div class="card mb"><div class="between"><b>${esc(n.location)}</b><span class="tag ${tagClass(prettyStatus(n.status))}">${prettyStatus(n.status)}</span></div>
-        <p class="muted">${esc(n.reporterName)}</p><p>${esc(n.description)}</p>
-        ${n.status !== "Open" ? `<button class="btn ghost ns" data-id="${n.id}" data-s="Open">Reopen</button>` : ""}
-        <button class="btn ghost ns" data-id="${n.id}" data-s="Resolved">Mark resolved</button>
-        <button class="btn ghost ns" data-id="${n.id}" data-s="Withdrawn">Withdraw</button></div>`).join("")}`}`;
+    ${pills([["visitors", `Visitors<span class="count">${visitors.filter(v => v.status === "OnSite").length}</span>`], ["incidents", `Incidents<span class="count">${openIncidents}</span>`]], tab, "tab")}
+    ${tab === "visitors"
+      ? (visitors.length ? `<div class="list">${visitors.map(v => `<div class="list-row"><div class="avatar">${initial(v.visitorName)}</div><div class="grow"><b>${esc(v.visitorName)}</b><div class="muted">Visiting ${esc(v.hostName)} · Room ${esc(v.hostRoom)} · ${esc(v.purpose)}</div></div>
+          <div class="end">${v.status === "OnSite" ? `<span class="tag sky dot">On site</span><button class="btn ghost sm v-out" data-id="${v.id}">Check out</button>` : `<span class="tag slate">${esc(prettyStatus(v.status))}</span>`}</div></div>`).join("")}</div>`
+        : emptyState("No visitors logged today", "Visitors registered by residents or the desk appear here.", "groups", "sky"))
+      : `${alerts.length ? `<div class="section-head" style="margin-top:0"><h2>Panic alerts</h2></div><div class="list mb">${alerts.map(a => `<div class="list-row" style="align-items:flex-start">
+          <span class="tile rose">${icon("alert")}</span>
+          <div class="grow"><b>${esc(a.reporterName)}</b><div class="muted">${esc(a.location)} · ${fmtDate(a.createdAt)}</div><p class="small" style="margin-top:4px;color:var(--ink-2)">${esc(a.message)}</p>${mapLink(a) ? `<div style="margin-top:6px">${mapLink(a)}</div>` : ""}</div>
+          <div class="end"><span class="tag dot ${a.status === "Open" ? "rose" : tagClass(a.status)}">${prettyStatus(a.status)}</span>
+            ${a.status === "Open" ? `<button class="btn sm em" data-id="${a.id}" data-s="Acknowledged">Acknowledge</button>` : ""}
+            ${a.status !== "Resolved" ? `<button class="btn soft sm em" data-id="${a.id}" data-s="Resolved">${icon("check")}Resolve</button>` : ""}
+            ${a.status !== "Open" ? `<button class="btn ghost sm em" data-id="${a.id}" data-s="Open">Reopen</button>` : ""}
+            ${a.status !== "Withdrawn" ? `<button class="btn ghost sm em" data-id="${a.id}" data-s="Withdrawn">False alarm</button>` : ""}</div></div>`).join("")}</div>` : ""}
+        ${noise.length ? `<div class="section-head"><h2>Noise complaints</h2></div><div class="list">${noise.map(n => `<div class="list-row" style="align-items:flex-start">
+          <span class="tile slate">${icon("notifications")}</span>
+          <div class="grow"><b>${esc(n.location)}</b><div class="muted">${esc(n.reporterName)} · ${timeAgo(n.createdAt)}</div><p class="small" style="margin-top:4px;color:var(--ink-2)">${esc(n.description)}</p></div>
+          <div class="end"><span class="tag dot ${tagClass(prettyStatus(n.status))}">${prettyStatus(n.status)}</span>
+            ${n.status !== "Resolved" ? `<button class="btn soft sm ns" data-id="${n.id}" data-s="Resolved">${icon("check")}Resolve</button>` : ""}
+            ${n.status !== "Open" ? `<button class="btn ghost sm ns" data-id="${n.id}" data-s="Open">Reopen</button>` : ""}
+            ${n.status !== "Withdrawn" ? `<button class="btn ghost sm ns" data-id="${n.id}" data-s="Withdrawn">Withdraw</button>` : ""}</div></div>`).join("")}</div>` : ""}
+        ${!alerts.length && !noise.length ? emptyState("All quiet", "No panic alerts or noise complaints.", "security", "leaf") : ""}`}`;
   main.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { state.tab = b.dataset.tab; security(main); });
-  document.getElementById("toggle-v").onclick = () => document.getElementById("v-box").classList.toggle("hidden");
-  document.getElementById("v-send").onclick = async () => { await api("/api/visitors", { method: "POST", body: JSON.stringify({ visitorName: val("v-name"), hostRoom: val("v-room"), purpose: val("v-purpose") }) }); security(main); };
+  bindToggles(main, { "toggle-v": "v-box" });
+  document.getElementById("v-send").onclick = async () => {
+    if (!val("v-name").trim()) { toast("Add the visitor's name.", "error"); return; }
+    await api("/api/visitors", { method: "POST", body: JSON.stringify({ visitorName: val("v-name"), hostRoom: val("v-room"), purpose: val("v-purpose") }) });
+    toast("Visitor registered.");
+    security(main);
+  };
   main.querySelectorAll(".em").forEach(el => el.onclick = async () => { await api(`/api/emergencies/${el.dataset.id}/status`, { method: "PUT", body: JSON.stringify({ status: el.dataset.s }) }); security(main); });
   main.querySelectorAll(".ns").forEach(el => el.onclick = async () => { await api(`/api/noise/${el.dataset.id}/status`, { method: "PUT", body: JSON.stringify({ status: el.dataset.s }) }); security(main); });
   main.querySelectorAll(".v-out").forEach(el => el.onclick = async () => { await api(`/api/visitors/${el.dataset.id}/status`, { method: "PUT", body: JSON.stringify({ status: "Departed" }) }); security(main); });
 }
 
-async function rewards(main) {
-    const items = await api("/api/rewards");
-    const redemptions = state.user.role === "Student" ? await api("/api/rewards/redemptions").catch(() => []) : [];
-    const filtered = state.filter === "All" ? items : items.filter(r => r.category === state.filter);
+const rewardIcon = { Food: "rewards", Merchandise: "market", Services: "maintenance", Experiences: "events", Discounts: "sparkle" };
+const rewardTint = { Food: "gold", Merchandise: "plum", Services: "sky", Experiences: "rose", Discounts: "leaf" };
 
-    main.innerHTML = `
-    <div class="balance">
+async function rewards(main) {
+  const items = await api("/api/rewards");
+  const redemptions = state.user.role === "Student" ? await api("/api/rewards/redemptions").catch(() => []) : [];
+  const filtered = state.filter === "All" ? items : items.filter(r => r.category === state.filter);
+  const student = state.user.role === "Student";
+
+  main.innerHTML = `
+    <section class="balance">
       <div>
         <small>Your reward balance</small>
-        <h1 style="margin:8px 0">${state.user.points} points</h1>
-        <p>Earn points by attending events, posting and helping others.</p>
+        <div class="points">${state.user.points}<span>points</span></div>
+        <p>Earn points by attending events, posting and helping others in your residence.</p>
       </div>
-      <div class="row">
-        <div class="metric"><b>${items.filter(r => state.user.points >= r.pointsCost).length}</b><div>Redeemable</div></div>
-        <div class="metric"><b>${items.length}</b><div>Total Rewards</div></div>
+      <div class="hero-chips">
+        <div class="hero-chip gold"><small>Redeemable now</small><b>${items.filter(r => state.user.points >= r.pointsCost).length}</b></div>
+        <div class="hero-chip"><small>In the catalogue</small><b>${items.length}</b></div>
       </div>
+    </section>
+
+    <div class="section-head"><h2>Reward catalogue</h2>${state.user.role === "Admin" ? toggleBtn("toggle-r", "Add reward") : ""}</div>
+    <div class="card form-card hidden" id="r-box">
+      <h3>New reward</h3>
+      <div class="form-grid">
+        <label class="full">Name<input id="r-name" /></label>
+        <label class="full">Description<input id="r-desc" /></label>
+        <label>Category<select id="r-cat"><option>Food</option><option>Merchandise</option><option>Services</option><option>Experiences</option><option>Discounts</option></select></label>
+        <label>Points<input id="r-cost" type="number" min="1" value="50" /></label>
+      </div>
+      <div class="form-actions"><button class="btn ghost" data-cancel="r-box">Cancel</button><button class="btn" id="r-add">Add reward</button></div>
     </div>
+    ${pills(["All", "Food", "Merchandise", "Services", "Experiences", "Discounts"].map(f => [f, f === "All" ? "All rewards" : f]), state.filter)}
+    ${filtered.length ? `<div class="grid-3">${filtered.map(r => {
+      const need = r.pointsCost - state.user.points;
+      const pct = Math.min(100, Math.round(state.user.points / Math.max(1, r.pointsCost) * 100));
+      return `<article class="card hover" style="display:flex;flex-direction:column;gap:10px">
+        <div class="between"><span class="tile ${rewardTint[r.category] || "gold"}">${icon(rewardIcon[r.category] || "rewards")}</span><span class="tag gold">${r.pointsCost} pts</span></div>
+        <div><h3>${esc(r.name)}</h3><p class="muted small" style="margin-top:4px">${esc(r.description)}</p></div>
+        <div class="muted small">${r.stock} left · ${esc(r.category)}</div>
+        ${student ? `<div class="card-foot" style="flex-direction:column;align-items:stretch">
+          ${need > 0 ? `<div class="progress"><i style="width:${pct}%"></i></div><button class="btn wide" disabled>${need} more points needed</button>`
+            : `<button class="btn wide redeem" data-id="${r.id}" data-cost="${r.pointsCost}" data-name="${esc(r.name)}">Redeem</button>`}
+        </div>` : ""}
+      </article>`;
+    }).join("")}</div>` : emptyState("No rewards in this category", "Try another category.", "rewards", "gold")}
 
-    <div class="section-head">
-      <h2>Reward Catalog</h2>
-      ${state.user.role === "Admin" ? `<button class="btn" id="toggle-r">+ Add Reward</button>` : ""}
-    </div>
+    ${redemptions.length ? `<div class="section-head"><h2>Your vouchers</h2></div>
+      <div class="list">${redemptions.map(r => `<div class="list-row">
+        <span class="tile gold">${icon("rewards")}</span>
+        <div class="grow"><b>${esc(r.rewardName)}</b><div class="muted">${r.pointsCost} pts · ${fmtDate(r.createdAt)}</div></div>
+        <div class="end"><span class="voucher">${esc(r.voucherCode)}</span><span class="tag dot ${r.isUsed ? "leaf" : r.isVoided ? "slate" : "gold"}">${r.isUsed ? "Used" : r.isVoided ? "Voided" : "Ready to use"}</span></div>
+      </div>`).join("")}</div>` : ""}`;
 
-    <div class="card hidden mb" id="r-box">
-      <label>Name<input id="r-name" /></label>
-      <label>Description<input id="r-desc" /></label>
-      <label>Category<select id="r-cat">
-        <option>Food</option>
-        <option>Merchandise</option>
-        <option>Services</option>
-        <option>Experiences</option>
-        <option>Discounts</option>
-      </select></label>
-      <label>Points<input id="r-cost" type="number" value="50" /></label>
-      <button class="btn" id="r-add">Add</button>
-    </div>
-
-    <div class="pills">
-      ${["All", "Food", "Merchandise", "Services", "Experiences", "Discounts"]
-            .map(f => `<button class="pill ${state.filter === f ? "active" : ""}" data-filter="${f}">${f}</button>`)
-            .join("")}
-    </div>
-
-    <div class="grid-3">
-      ${filtered.map(r => {
-                const need = r.pointsCost - state.user.points;
-                return `
-          <div class="card">
-            <div class="icon-box">${icon("rewards")}</div>
-            <h3>${esc(r.name)}</h3>
-            <p class="muted">${esc(r.description)}</p>
-            <p>
-              <span class="tag green">${r.pointsCost} pts</span>
-              <span class="muted">${r.stock} left</span>
-            </p>
-            ${state.user.role === "Student" ? (
-                        need > 0
-                            ? `<button class="btn wide" disabled>Need ${need} more pts</button>`
-                            : `<button class="btn wide redeem" data-id="${r.id}" data-cost="${r.pointsCost}">Redeem</button>`
-                    ) : ""}
-          </div>
-        `;
-            }).join("")}
-    </div>
-
-    ${redemptions.length ? `
-      <div class="section-head"><h2>Recent redemptions</h2></div>
-      ${redemptions.map(r => `
-        <div class="card mb between">
-          <div>
-            <b>${esc(r.rewardName)}</b>
-            <div class="muted">
-              ${r.pointsCost} pts · ${esc(r.voucherCode)} ·
-              ${r.isUsed ? "Used" : r.isVoided ? "Voided" : "Pending"}
-            </div>
-          </div>
-        </div>
-      `).join("")}
-    ` : ""}
-  `;
-
-    main.querySelectorAll("[data-filter]").forEach(b => {
-        b.onclick = () => {
-            state.filter = b.dataset.filter;
-            rewards(main);
-        };
-    });
-
-    const tr = document.getElementById("toggle-r");
-    if (tr) {
-        tr.onclick = () => document.getElementById("r-box").classList.toggle("hidden");
-    }
-
-    const ra = document.getElementById("r-add");
-    if (ra) {
-        ra.onclick = async () => {
-            await api("/api/rewards", {
-                method: "POST",
-                body: JSON.stringify({
-                    name: val("r-name"),
-                    description: val("r-desc"),
-                    category: val("r-cat"),
-                    pointsCost: Number(val("r-cost"))
-                })
-            });
-            rewards(main);
-        };
-    }
-
-    main.querySelectorAll(".redeem").forEach(el => {
-        el.onclick = async () => {
-            const result = await api(`/api/rewards/${el.dataset.id}/redeem`, { method: "POST" });
-
-            state.user.points -= Number(el.dataset.cost);
-            save(state.user);
-
-            alert(`Reward redeemed. Use this voucher code: ${result.voucherCode}`);
-
-            rewards(main);
-        };
-    });
+  main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.filter = b.dataset.filter; rewards(main); });
+  bindToggles(main, { "toggle-r": "r-box" });
+  const ra = document.getElementById("r-add");
+  if (ra) ra.onclick = async () => {
+    if (!val("r-name").trim()) { toast("Give the reward a name.", "error"); return; }
+    await api("/api/rewards", { method: "POST", body: JSON.stringify({ name: val("r-name"), description: val("r-desc"), category: val("r-cat"), pointsCost: Number(val("r-cost")) }) });
+    toast("Reward added.");
+    rewards(main);
+  };
+  main.querySelectorAll(".redeem").forEach(el => el.onclick = () => {
+    const confirm = openDialog(`<h3>Redeem ${el.dataset.name}?</h3>
+      <p>This uses ${el.dataset.cost} of your ${state.user.points} points. Redemptions are final, so only the residence admin can void a voucher.</p>
+      <div class="form-actions"><button class="btn ghost" data-close>Not now</button><button class="btn" id="confirm-redeem">Redeem for ${el.dataset.cost} pts</button></div>`);
+    confirm.el.querySelector("#confirm-redeem").onclick = async () => {
+      confirm.close();
+      const result = await api(`/api/rewards/${el.dataset.id}/redeem`, { method: "POST" });
+      state.user.points -= Number(el.dataset.cost);
+      save(state.user);
+      openDialog(`<h3>Enjoy your reward</h3><p>Show this voucher code when you collect ${el.dataset.name}. You can find it again under Your vouchers.</p>
+        <div class="code">${esc(result.voucherCode)}</div>
+        <div class="form-actions"><button class="btn" data-close>Done</button></div>`);
+      rewards(main);
+    };
+  });
 }
 
 async function admin(main) {
-    const users = await api("/api/admin/users");
-    const analytics = await api("/api/admin/analytics");
-    const posts = await api("/api/posts");
-    const events = await api("/api/events");
-    const market = await api("/api/marketplace");
-    const rewards = await api("/api/rewards");
-    const redemptionAdmin = await api("/api/rewards/redemptions/admin");
+  const users = await api("/api/admin/users");
+  const analytics = await api("/api/admin/analytics");
+  const posts = await api("/api/posts");
+  const events = await api("/api/events");
+  const market = await api("/api/marketplace");
+  const rewards = await api("/api/rewards");
+  const redemptionAdmin = await api("/api/rewards/redemptions/admin");
+  const tab = ["residents", "announcements", "redemptions"].includes(state.tab) ? state.tab : "overview";
+  const pendingCodes = redemptionAdmin.filter(r => !r.isUsed && !r.isVoided).length;
 
-    const tab = state.tab === "residents" || state.tab === "announcements" || state.tab === "redemptions"
-        ? state.tab
-        : "overview";
-
-    main.innerHTML = `
-    <div class="page-head">
-      <div><h1>Admin Panel</h1><p>Manage your residence community.</p></div>
-    </div>
-
-    <div class="pills">
-      <button class="pill ${tab === "overview" ? "active" : ""}" data-tab="overview">Overview</button>
-      <button class="pill ${tab === "residents" ? "active" : ""}" data-tab="residents">Residents</button>
-      <button class="pill ${tab === "announcements" ? "active" : ""}" data-tab="announcements">Announcements</button>
-      <button class="pill ${tab === "redemptions" ? "active" : ""}" data-tab="redemptions">Redemptions</button>
-    </div>
-
+  main.innerHTML = `
+    ${pageHead("Admin Panel", "Manage residents, announcements and rewards for your residence.", "", esc(state.user.residenceName || "Residence"))}
+    ${pills([["overview", "Overview"], ["residents", `Residents<span class="count">${users.length}</span>`], ["announcements", "Announcements"], ["redemptions", `Redemptions<span class="count">${pendingCodes}</span>`]], tab, "tab")}
     ${tab === "overview" ? `
-      <div class="admin-metrics">
-        ${metric("Total Residents", analytics.students, "groups")}
-        ${metric("Maintenance Requests", analytics.openTickets, "maintenance")}
-        ${metric("Events Created", events.length, "events")}
-        ${metric("Community Posts", posts.length, "community")}
-        ${metric("Marketplace Listings", market.length, "market")}
-        ${metric("Active Rewards", rewards.length, "rewards")}
+      <div class="grid-3">
+        ${metric("Residents", analytics.students, "groups", "leaf")}
+        ${metric("Open maintenance requests", analytics.openTickets, "maintenance", "gold")}
+        ${metric("Events created", events.length, "events", "sky")}
+        ${metric("Community posts", posts.length, "community", "leaf")}
+        ${metric("Marketplace listings", market.length, "market", "plum")}
+        ${metric("Active rewards", rewards.length, "rewards", "gold")}
       </div>
     ` : tab === "residents" ? `
-      ${users.map(u => `
-        <div class="card mb between">
-          <div>
-            <b>${esc(u.fullName)}</b>
-            <div class="muted">${esc(u.email)}${u.room ? " · Room " + esc(u.room) : ""}</div>
-          </div>
-          <div>
-            <span class="tag ${tagClass(u.role)}">${esc(u.isActive ? u.role : "Inactive")}</span>
-            <button class="btn ghost reset-link" data-id="${u.id}" data-name="${esc(u.fullName)}">Create reset link</button>
-            <button class="btn ghost act" data-id="${u.id}" data-on="${u.isActive}">
-              ${u.isActive ? "Deactivate" : "Activate"}
-            </button>
-          </div>
+      <div class="list">${users.map(u => `<div class="list-row">
+        <div class="avatar">${initial(u.fullName)}</div>
+        <div class="grow"><b>${esc(u.fullName)}</b><div class="muted">${esc(u.email)}${u.room ? " · Room " + esc(u.room) : ""}</div></div>
+        <div class="end">
+          <span class="tag ${u.isActive ? tagClass(u.role) : "slate"}">${esc(u.isActive ? u.role : "Inactive")}</span>
+          <button class="btn ghost sm reset-link" data-id="${u.id}" data-name="${esc(u.fullName)}">${icon("key")}Reset link</button>
+          <button class="btn ${u.isActive ? "subtle-danger" : "soft"} sm act" data-id="${u.id}" data-on="${u.isActive}">${u.isActive ? "Deactivate" : "Activate"}</button>
         </div>
-      `).join("")}
+      </div>`).join("")}</div>
     ` : tab === "announcements" ? `
-      <div class="card mb">
-        <textarea id="a-body" placeholder="Write an announcement"></textarea>
-        <p><button class="btn" id="a-post">Post announcement</button></p>
+      <div class="card form-card">
+        <h3>New announcement</h3>
+        <textarea id="a-body" placeholder="Write an announcement for every resident"></textarea>
+        <div class="form-actions"><button class="btn" id="a-post">Post announcement</button></div>
       </div>
-      ${posts.filter(p => p.kind === "Announcement").map(p => `
-        <div class="card mb">
-          <b>${esc(p.title)}</b>
-          <p>${esc(p.body)}</p>
-        </div>
-      `).join("")}
+      ${posts.filter(p => p.kind === "Announcement").map(p => `<div class="notice"><span class="tile plum">${icon("notifications")}</span><div><b>${esc(p.title)}</b><p>${esc(p.body)}</p><p class="muted small">${fmtDate(p.createdAt)}</p></div></div>`).join("") || emptyState("No announcements yet", "Post one above and every resident will see it on their dashboard.", "notifications", "plum")}
     ` : `
-      <div class="section-head"><h2>Reward redemptions</h2></div>
-
-      ${redemptionAdmin.length ? redemptionAdmin.map(r => `
-        <div class="card mb between">
-          <div>
-            <b>${esc(r.userName)}</b>
-            <div class="muted">
-              ${esc(r.rewardName)} · ${esc(r.voucherCode)} · ${r.pointsCost} pts
-            </div>
-          </div>
-          <div>
-            ${!r.isUsed && !r.isVoided ? `<button class="btn mark-used" data-id="${r.id}">Mark used</button>` : ""}
-            ${!r.isUsed && !r.isVoided ? `<button class="btn ghost void-redemption" data-id="${r.id}">Void code</button>` : ""}
-            ${r.isUsed ? `<span class="tag green">Used</span>` : r.isVoided ? `<span class="tag red">Voided</span>` : `<span class="tag">Pending</span>`}
-          </div>
+      ${redemptionAdmin.length ? `<div class="list">${redemptionAdmin.map(r => `<div class="list-row">
+        <span class="tile gold">${icon("rewards")}</span>
+        <div class="grow"><b>${esc(r.userName)}</b><div class="muted">${esc(r.rewardName)} · ${r.pointsCost} pts</div></div>
+        <div class="end">
+          <span class="voucher">${esc(r.voucherCode)}</span>
+          ${r.isUsed ? `<span class="tag leaf dot">Used</span>` : r.isVoided ? `<span class="tag slate dot">Voided</span>` : `<span class="tag gold dot">Pending</span>
+            <button class="btn sm mark-used" data-id="${r.id}">${icon("check")}Mark used</button>
+            <button class="btn subtle-danger sm void-redemption" data-id="${r.id}">Void</button>`}
         </div>
-      `).join("") : `<div class="empty">No reward redemptions yet.</div>`}
-    `}
-  `;
+      </div>`).join("")}</div>` : emptyState("No reward redemptions yet", "Vouchers appear here when students redeem rewards.", "rewards", "gold")}
+    `}`;
 
-    main.querySelectorAll("[data-tab]").forEach(b => {
-        b.onclick = () => {
-            state.tab = b.dataset.tab;
-            admin(main);
-        };
-    });
-
-    main.querySelectorAll(".reset-link").forEach(el => {
-        el.onclick = async () => {
-            const result = await api(`/api/admin/users/${el.dataset.id}/reset-link`, { method: "POST" });
-            const copied = await navigator.clipboard?.writeText(result.link).then(() => true, () => false);
-            prompt(`${copied ? "Copied. " : ""}Send this one-time link to ${el.dataset.name}. It expires in 30 minutes.`, result.link);
-        };
-    });
-
-    main.querySelectorAll(".act").forEach(el => {
-        el.onclick = async () => {
-            await api(`/api/admin/users/${el.dataset.id}/active`, {
-                method: "PUT",
-                body: JSON.stringify({ isActive: el.dataset.on !== "true" })
-            });
-            admin(main);
-        };
-    });
-
-    const ap = document.getElementById("a-post");
-    if (ap) {
-        ap.onclick = async () => {
-            await api("/api/posts", {
-                method: "POST",
-                body: JSON.stringify({
-                    title: "Announcement",
-                    body: val("a-body"),
-                    kind: "Announcement",
-                    isPoll: false
-                })
-            });
-            admin(main);
-        };
-    }
-
-    main.querySelectorAll(".mark-used").forEach(el => {
-        el.onclick = async () => {
-            await api(`/api/rewards/redemptions/${el.dataset.id}/mark-used`, { method: "POST" });
-            admin(main);
-        };
-    });
-
-    main.querySelectorAll(".void-redemption").forEach(el => {
-        el.onclick = async () => {
-            await api(`/api/rewards/redemptions/${el.dataset.id}/void`, { method: "POST" });
-            admin(main);
-        };
-    });
+  main.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { state.tab = b.dataset.tab; admin(main); });
+  main.querySelectorAll(".reset-link").forEach(el => el.onclick = async () => {
+    const result = await api(`/api/admin/users/${el.dataset.id}/reset-link`, { method: "POST" });
+    const copied = await navigator.clipboard?.writeText(result.link).then(() => true, () => false);
+    const box = openDialog(`<h3>Reset link for ${el.dataset.name}</h3>
+      <p>Send this one-time link to the resident, for example on WhatsApp. It works once and expires in 30 minutes.</p>
+      <div class="copy-row"><input id="reset-url" readonly value="${esc(result.link)}" /><button class="btn" id="copy-reset">${icon("copy")}<span>${copied ? "Copied" : "Copy"}</span></button></div>
+      <div class="form-actions"><button class="btn ghost" data-close>Done</button></div>`);
+    const input = box.el.querySelector("#reset-url");
+    input.onfocus = () => input.select();
+    box.el.querySelector("#copy-reset").onclick = async e => {
+      input.select();
+      const ok = await navigator.clipboard?.writeText(result.link).then(() => true, () => false);
+      if (!ok) document.execCommand("copy");
+      e.currentTarget.querySelector("span").textContent = "Copied";
+    };
+  });
+  main.querySelectorAll(".act").forEach(el => el.onclick = async () => {
+    await api(`/api/admin/users/${el.dataset.id}/active`, { method: "PUT", body: JSON.stringify({ isActive: el.dataset.on !== "true" }) });
+    admin(main);
+  });
+  const ap = document.getElementById("a-post");
+  if (ap) ap.onclick = async () => {
+    if (!val("a-body").trim()) { toast("Write the announcement first.", "error"); return; }
+    await api("/api/posts", { method: "POST", body: JSON.stringify({ title: "Announcement", body: val("a-body"), kind: "Announcement", isPoll: false }) });
+    toast("Announcement posted.");
+    admin(main);
+  };
+  main.querySelectorAll(".mark-used").forEach(el => el.onclick = async () => { await api(`/api/rewards/redemptions/${el.dataset.id}/mark-used`, { method: "POST" }); admin(main); });
+  main.querySelectorAll(".void-redemption").forEach(el => el.onclick = async () => { await api(`/api/rewards/redemptions/${el.dataset.id}/void`, { method: "POST" }); toast("Voucher voided and points returned."); admin(main); });
 }
-const metric = (label, n, name) => `<div class="card"><div class="icon-box">${icon(name)}</div><b>${n}</b><div class="muted">${label}</div></div>`;
+const metric = (label, n, name, tint) => `<div class="card stat"><span class="tile ${tint}">${icon(name)}</span><div><b>${n}</b><span>${label}</span></div></div>`;
 
 async function notifications(main) {
   const items = await api("/api/notifications");
-  main.innerHTML = `<div class="page-head"><div><h1>Notifications</h1><p>Residence alerts and ticket updates.</p></div></div>
-    ${items.map(n => `<div class="card mb"><div class="between"><b>${esc(n.title)}</b>${n.isRead ? "" : `<span class="tag green">New</span>`}</div><p class="muted">${esc(n.body)}</p></div>`).join("") || `<div class="empty">No notifications yet</div>`}`;
+  main.innerHTML = `${pageHead("Notifications", "Residence alerts and updates on your work.")}
+    ${items.length ? `<div class="list">${items.map(n => `<div class="list-row" style="align-items:flex-start">
+      <span class="tile ${n.isRead ? "slate" : "sky"}">${icon("notifications")}</span>
+      <div class="grow"><b>${esc(n.title)}</b><div class="muted">${esc(n.body)}</div></div>
+      <div class="end">${n.isRead ? "" : `<span class="tag sky dot">New</span>`}<span class="muted small">${timeAgo(n.createdAt)}</span></div>
+    </div>`).join("")}</div>` : emptyState("You're all caught up", "New alerts and ticket updates will appear here.", "notifications", "sky")}`;
 }
 
 function profile(main) {
-  const initials = state.user.fullName.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
+  const u = state.user;
+  const details = [
+    ["Email", u.email], ["Role", u.role], ["Residence", u.residenceName], ["Room", u.room],
+    ["Student number", u.studentNumber], ["Staff ID", u.staffId]
+  ].filter(([, v]) => v);
   main.innerHTML = `
-    <div class="page-head"><div><h1>My Profile</h1><p>Manage your account and personal details.</p></div></div>
+    ${pageHead("Profile", "Your account and residence details.")}
     <div class="card mb">
       <div class="profile-hero">
-        <div class="big">${initials}</div>
-        <div class="who"><h2 style="margin:0">${esc(state.user.fullName)}</h2><small>${esc(state.user.role)}</small><p class="muted">${esc(state.user.email)}</p></div>
+        <div class="big">${initials(u.fullName)}</div>
+        <div><h2 style="font-size:22px">${esc(u.fullName)}</h2><div class="tags" style="margin-top:6px"><span class="tag ${tagClass(u.role)}">${esc(u.role)}</span><span class="tag gold">${u.points} points</span></div></div>
       </div>
-      <div class="card" style="background:#f7f8f6;margin-top:20px"><b>${state.user.points} points</b><div class="muted">Reward balance</div></div>
+      <div class="kv">${details.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join("")}</div>
     </div>
-    <button class="card signout-card" id="logout2">Sign out of ResLink</button>`;
-  document.getElementById("logout2").onclick = () => { save(null); render(); };
+    <button class="btn subtle-danger lg" id="logout2">${icon("logout")}<span>Sign out of ResLink</span></button>`;
+  document.getElementById("logout2").onclick = () => { save(null); state.auth = "signin"; render(); };
 }
 
 render();

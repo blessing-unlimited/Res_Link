@@ -4,7 +4,7 @@
 
 A student-residence app by **Dynamic Developers** (INSY72315).
 
-**Open the app:** [https://reslink.onrender.com](https://reslink.onrender.com)
+**Open the app:** [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com)
 
 The first visit can take about a minute while the free host wakes up. Then sign in with one of the demo accounts:
 
@@ -17,16 +17,16 @@ The first visit can take about a minute while the free host wakes up. Then sign 
 
 Staff self-registration uses the access code `RESLINK-STAFF-2026`.
 
-The same API and accounts work in a local browser or in Android Studio. The emulator talks to a local API at `http://10.0.2.2:5180/`. To point a physical phone at the live backend, set `API_BASE_URL` in `android/app/build.gradle.kts` to `https://reslink.onrender.com/`.
+The same API and accounts work in a local browser or in Android Studio. The Android app talks to the live backend at `https://reslink-zkca.onrender.com/` by default, so it works on an emulator or a real phone without running the API locally.
 
 ## What the lecturer can mark
 
-1. Open [https://reslink.onrender.com](https://reslink.onrender.com) or run the app locally (steps below).
+1. Open [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com) or run the app locally (steps below).
 2. Sign in with each demo account and follow the walkthrough.
 3. Run `dotnet test ResLink.sln` from the repository root.
-4. API documentation is at [https://reslink.onrender.com/swagger](https://reslink.onrender.com/swagger) or `http://localhost:5180/swagger`.
+4. API documentation is at [https://reslink-zkca.onrender.com/swagger](https://reslink-zkca.onrender.com/swagger) or `http://localhost:5180/swagger`.
 
-ResLink is one app for students, residence administrators, security, and maintenance. Each role has its own sign-up path, home screen, and permissions. The browser uses the house-and-chain logo, Nunito type, and a white sidebar. The account role sits under the person's name. Event cards use stock photos. On a phone the menu moves to a bottom bar.
+ResLink is one app for students, residence administrators, security, and maintenance. Each role has its own sign-up path, home screen, and permissions. The browser uses the house-and-chain logo, Plus Jakarta Sans type, and a dark green (#04180f) sidebar that matches the logo background. Each feature has its own colour, and the account role sits under the person's name. Event cards use stock photos. On a tablet the sidebar shrinks to icons, and on a phone the menu moves to a bottom bar. The Android app uses the same colours, with a dark side rail on tablets.
 
 ## Purpose
 
@@ -74,14 +74,13 @@ Leave this terminal open while you use the app.
 
 ### 2. Run the Android application (optional)
 
-1. Confirm the API is running on port 5180.
-2. Copy `android/local.properties.example` to `android/local.properties` and set the Android SDK path.
-3. In Android Studio, open the `android` folder and wait for Gradle sync to finish.
-4. Start an emulator and run the **app** configuration.
+1. Copy `android/local.properties.example` to `android/local.properties` and set the Android SDK path.
+2. In Android Studio, open the `android` folder and wait for Gradle sync to finish.
+3. Start an emulator or connect a phone, then run the **app** configuration.
 
-The emulator calls the API at `http://10.0.2.2:5180/`.
+The app calls the live API at `https://reslink-zkca.onrender.com/` (`API_BASE_URL` in `android/app/build.gradle.kts`). The first request can take about a minute while the free host wakes up.
 
-To use a physical phone on the same Wi-Fi network, change `API_BASE_URL` in `android/app/build.gradle.kts` to the computer’s LAN address, for example `http://192.168.1.10:5180/`.
+To test against the API on your own computer instead, change `API_BASE_URL` to `http://10.0.2.2:5180/` for the emulator, or to the computer's LAN address (for example `http://192.168.1.10:5180/`) for a phone on the same Wi-Fi network.
 
 ## Demo accounts
 
@@ -142,7 +141,7 @@ Thami records the app and publishes a separate infographic site. These two piece
 
 ### 1. App recording
 
-1. Open [https://reslink.onrender.com](https://reslink.onrender.com) and wait until the sign-in page loads.
+1. Open [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com) and wait until the sign-in page loads.
 2. Record the full screen (Windows Game Bar with `Win + Alt + R`, or phone screen recording). Speak or add captions so the role of each screen is clear.
 3. Record this order, signing out between roles:
    - Student: sign in, home, community post, event RSVP, marketplace, maintenance request, panic button, noise complaint, rewards, study group.
@@ -159,11 +158,11 @@ Build a small separate site (one page is enough) that explains ResLink to someon
 
 Include:
 
-- the ResLink logo (`reslink.jpeg` in this repository)
+- the ResLink logo (`docs/brand/`: `lockup.png` on dark backgrounds, `horizontal-ink.png` on light ones)
 - the line “Find. Connect. Live.”
 - who it is for: students, admin, security, maintenance
 - four short blocks: community, events, safety, maintenance
-- the live app link: [https://reslink.onrender.com](https://reslink.onrender.com)
+- the live app link: [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com)
 - the team names: Sihle, Thami, and Blessing
 
 Host the page on GitHub Pages or any free static host, and paste the URL under this heading when it is live.
@@ -269,7 +268,7 @@ Redeeming points only reduces a number in the database. Food vouchers and laundr
 
 Events show a demo code. A real check-in needs a code that changes per event and a camera scan.
 
-1. When an admin publishes an event, generate a random check-in code and a QR image of `https://reslink.onrender.com/check-in/{code}`.
+1. When an admin publishes an event, generate a random check-in code and a QR image of `https://reslink-zkca.onrender.com/check-in/{code}`.
 2. The student screen scans or pastes that code and calls `POST /api/events/{id}/check-in`.
 3. Award the attendance points only once per student.
 4. Test with two phones: one showing the QR, one scanning it.
@@ -298,9 +297,11 @@ Android Developers (2025a) *Jetpack Compose*. Available at: https://developer.an
 
 Android Developers (2025b) *Material Design 3 in Compose*. Available at: https://developer.android.com/develop/ui/compose/designsystems/material3 (Accessed: 25 September 2026).
 
+Android Developers (2025c) *Build adaptive navigation*. Available at: https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation (Accessed: 2 October 2026).
+
 Google (2025) *Firebase Cloud Messaging*. Available at: https://firebase.google.com/docs/cloud-messaging (Accessed: 25 September 2026).
 
-Google Fonts (2026) *Nunito*. Available at: https://fonts.google.com/specimen/Nunito (Accessed: 25 September 2026).
+Google Fonts (2026) *Plus Jakarta Sans*. Available at: https://fonts.google.com/specimen/Plus+Jakarta+Sans (Accessed: 2 October 2026).
 
 Material Design (2025) *Icons*. Available at: https://m3.material.io/styles/icons/overview (Accessed: 25 September 2026).
 
