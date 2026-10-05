@@ -165,6 +165,9 @@ interface ResLinkApi {
 
     @PUT("api/admin/users/{id}/active")
     suspend fun setActive(@Path("id") id: String, @Body body: UpdateActiveRequest): Response<Unit>
+
+    @POST("api/admin/users/{id}/reset-link")
+    suspend fun resetLink(@Path("id") id: String): ResetLinkDto
 }
 
 object ApiFactory {

@@ -26,7 +26,7 @@ The same API and accounts work in a local browser or in Android Studio. The emul
 3. Run `dotnet test ResLink.sln` from the repository root.
 4. API documentation is at [https://reslink.onrender.com/swagger](https://reslink.onrender.com/swagger) or `http://localhost:5180/swagger`.
 
-ResLink is one app for students, residence administrators, security, and maintenance. Each role has its own sign-up path, home screen, and permissions. The browser uses the house-and-chain logo, Nunito type, and a white sidebar. The account role sits under the person's name. Event cards use stock photos. On a phone the menu moves to a bottom bar.
+ResLink is one app for students, residence administrators, security, and maintenance. Each role has its own sign-up path, home screen, and permissions. The browser uses the house-and-chain logo, Plus Jakarta Sans type, and a dark green (#04180f) sidebar that matches the logo background. Each feature has its own colour, and the account role sits under the person's name. Event cards use stock photos. On a tablet the sidebar shrinks to icons, and on a phone the menu moves to a bottom bar. The Android app uses the same colours, with a dark side rail on tablets.
 
 ## Purpose
 
@@ -290,9 +290,11 @@ Android Developers (2025a) *Jetpack Compose*. Available at: https://developer.an
 
 Android Developers (2025b) *Material Design 3 in Compose*. Available at: https://developer.android.com/develop/ui/compose/designsystems/material3 (Accessed: 25 September 2026).
 
+Android Developers (2025c) *Build adaptive navigation*. Available at: https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation (Accessed: 2 October 2026).
+
 Google (2025) *Firebase Cloud Messaging*. Available at: https://firebase.google.com/docs/cloud-messaging (Accessed: 25 September 2026).
 
-Google Fonts (2026) *Nunito*. Available at: https://fonts.google.com/specimen/Nunito (Accessed: 25 September 2026).
+Google Fonts (2026) *Plus Jakarta Sans*. Available at: https://fonts.google.com/specimen/Plus+Jakarta+Sans (Accessed: 2 October 2026).
 
 Material Design (2025) *Icons*. Available at: https://m3.material.io/styles/icons/overview (Accessed: 25 September 2026).
 
