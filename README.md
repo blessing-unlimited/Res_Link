@@ -6,6 +6,8 @@ A student-residence app by **Dynamic Developers** (INSY72315).
 
 **Open the app:** [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com)
 
+**Project infographic:** [https://reslink-infographic-zkca.onrender.com](https://reslink-infographic-zkca.onrender.com)
+
 The first visit can take about a minute while the free host wakes up. Then sign in with one of the demo accounts:
 
 | Role | Email | Password |
@@ -40,11 +42,13 @@ The app shows how a residence can:
 
 ## Team contributions
 
-| Member | Contribution |
-| --- | --- |
-| Sihle | Infrastructure and operations: Docker and Render hosting, the live URL, JWT session handling when the host restarts, the browser app (logo, layout, role label, event photos), and this run guide. |
-| Thami | A screen recording of the app, and a separate website that presents the project as an infographic. See Thami's work below. |
-| Blessing | Backend lead. The API, roles, and demo data are in this repository. The steps still required for a real residence are written out below as Blessing's work. |
+ResLink is built by **Dynamic Developers**.
+
+| Member | GitHub | Contribution |
+| --- | --- | --- |
+| Sihle | [@Sihl3s](https://github.com/Sihl3s) | Infrastructure and operations: Docker and Render hosting, the live URL, JWT session handling when the host restarts, the browser app (logo, layout, role label, event photos), and this run guide. |
+| Thami (Nomathamsanqa) | [@NomathamsanqaTame](https://github.com/NomathamsanqaTame) | A screen recording of the app, and a separate website that presents the project as an infographic. See Thami's work below. |
+| Blessing | [@blessing-unlimited](https://github.com/blessing-unlimited) | Backend lead. The API, roles, and demo data are in this repository. The steps still required for a real residence are written out below as Blessing's work. |
 
 ## Prerequisites
 
@@ -163,11 +167,11 @@ Include:
 - who it is for: students, admin, security, maintenance
 - four short blocks: community, events, safety, maintenance
 - the live app link: [https://reslink-zkca.onrender.com](https://reslink-zkca.onrender.com)
-- the team names: Sihle, Thami, and Blessing
+- the group name, Dynamic Developers, and the team names: Sihle, Nomathamsanqa, and Blessing
 
-**Live site:** [https://reslink-infographic.onrender.com](https://reslink-infographic.onrender.com)
+**Live site:** [https://reslink-infographic-zkca.onrender.com](https://reslink-infographic-zkca.onrender.com)
 
-The page is `docs/index.html`. Render hosts it as a free static site defined in `render.yaml`, and it updates whenever a change to `docs/` reaches `main`.
+The page is `docs/index.html`. In the Meet the Team section, hovering over (or tabbing to) a name shows that member's GitHub username, and clicking it opens their GitHub profile. Render hosts the page as a free static site defined in `render.yaml`, and it updates whenever a change to `docs/` reaches `main`.
 
 ## Blessing's work
 
@@ -180,7 +184,7 @@ Do not put passwords, API keys, or card numbers in Git. Set them in the Render d
 The live app is a Render web service built from this repository (`blessing-unlimited/Res_Link`). `render.yaml` describes it: Docker, the free plan, and the Frankfurt region, the same as the Neon database (Render, 2025).
 
 1. On Render, choose **New > Blueprint** and connect `blessing-unlimited/Res_Link`. A repository owner may have to approve the Render GitHub app first.
-2. Render reads `render.yaml`, creates the `reslink` service, and generates `Jwt__Key` itself.
+2. Render reads `render.yaml`, creates the `reslink` web service and the `reslink-infographic` static site, and generates `Jwt__Key` itself. Render may add a short suffix to each name, which is why the live addresses end in `-zkca`.
 3. When it asks for the other values, set `Staff__AccessCode`. The Cloudinary and Firebase values can stay empty until those accounts exist. Add `DATABASE_URL` only when the live data should move to Neon (step 1 below).
 4. Each push to `main` redeploys the service. Password reset links use the service's own address automatically.
 
@@ -289,6 +293,9 @@ ResLink/
   backend/ResLink.Api/          ASP.NET Core Web API and browser app
   backend/ResLink.Api.Tests/    Authentication and role tests
   android/                      Kotlin Jetpack Compose application
+  docs/                         Infographic website (index.html and brand/ logos)
+  render.yaml                   Render services for the app and the infographic
+  Dockerfile                    Container build used by Render
   reslink.jpeg                  App logo
   README.md                     This guide
 ```
@@ -300,6 +307,8 @@ Android Developers (2025a) *Jetpack Compose*. Available at: https://developer.an
 Android Developers (2025b) *Material Design 3 in Compose*. Available at: https://developer.android.com/develop/ui/compose/designsystems/material3 (Accessed: 25 September 2026).
 
 Android Developers (2025c) *Build adaptive navigation*. Available at: https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation (Accessed: 2 October 2026).
+
+GitHub (2026) *Octicons*. Available at: https://primer.style/octicons/ (Accessed: 5 October 2026).
 
 Google (2025) *Firebase Cloud Messaging*. Available at: https://firebase.google.com/docs/cloud-messaging (Accessed: 25 September 2026).
 
