@@ -6,6 +6,7 @@ import com.dynamicdevelopers.reslink.data.ApiFactory
 import com.dynamicdevelopers.reslink.data.ResLinkApi
 import com.dynamicdevelopers.reslink.data.SessionStore
 import com.dynamicdevelopers.reslink.data.UpdatePushTokenRequest
+import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,15 @@ class ResLinkApp : Application() {
         super.onCreate()
         session = SessionStore(this)
         api = ApiFactory.create(session)
+        syncPushToken()
+    }
 
+    // Builds without google-services.json have no Firebase app, and getInstance() would crash.
+    fun syncPushToken() {
+        if (FirebaseApp.getApps(this).isEmpty()) {
+            Log.i("FCM", "Firebase is not configured; push notifications are off")
+            return
+        }
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 Log.w("FCM", "Fetching FCM token failed", task.exception)

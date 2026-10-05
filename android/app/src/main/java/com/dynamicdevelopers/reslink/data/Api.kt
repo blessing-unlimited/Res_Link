@@ -25,6 +25,9 @@ interface ResLinkApi {
     @POST("api/auth/login")
     suspend fun login(@Body body: LoginRequest): AuthResponse
 
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(@Body body: ForgotPasswordRequest): MessageResponse
+
     @POST("api/auth/register/student")
     suspend fun registerStudent(@Body body: StudentRegisterRequest): AuthResponse
 
@@ -129,9 +132,6 @@ interface ResLinkApi {
 
     @POST("api/rewards/{id}/redeem")
     suspend fun redeem(@Path("id") id: String): Response<Unit>
-
-    @POST("api/rewards/redemptions/{id}/cancel")
-    suspend fun cancelRedemption(@Path("id") id: String): Response<Unit>
 
     @GET("api/visitors")
     suspend fun visitors(): List<VisitorDto>

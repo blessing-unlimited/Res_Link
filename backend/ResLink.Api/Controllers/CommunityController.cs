@@ -16,7 +16,7 @@ public class CommunityController(
     CurrentUser current,
     PointsService points) : ControllerBase
 {
-    // Join/leave and redeem/cancel keep study groups and rewards reversible in a demo (Microsoft, 2025a).
+    // Study groups can be joined and left; a redeemed reward can only be voided by an admin (Microsoft, 2025a).
     [HttpGet("api/study-groups")]
     [Authorize(Roles = $"{Roles.Student},{Roles.Admin}")]
     public async Task<ActionResult<IReadOnlyList<StudyGroupDto>>> Groups()
@@ -162,30 +162,6 @@ public class CommunityController(
             rewardName = reward.Name,
             pointsCost = reward.PointsCost
         });
-    }
-
-    // Refunds points and restocks the catalogue so a redeem can be undone (Microsoft, 2025a).
-    [HttpPost("api/rewards/redemptions/{id:guid}/cancel")]
-    [Authorize(Roles = Roles.Student)]
-    public async Task<IActionResult> CancelRedemption(Guid id)
-    {
-        var redemption = await db.Redemptions.Include(r => r.Reward)
-            .FirstOrDefaultAsync(r => r.Id == id && r.UserId == current.UserId);
-        if (redemption is null)
-        {
-            return NotFound();
-        }
-
-        var user = await db.Users.FirstAsync(u => u.Id == current.UserId);
-        user.Points += redemption.Reward?.PointsCost ?? 0;
-        if (redemption.Reward is not null)
-        {
-            redemption.Reward.Stock += 1;
-        }
-
-        db.Redemptions.Remove(redemption);
-        await db.SaveChangesAsync();
-        return NoContent();
     }
 
     [HttpGet("api/rewards/redemptions/admin")]

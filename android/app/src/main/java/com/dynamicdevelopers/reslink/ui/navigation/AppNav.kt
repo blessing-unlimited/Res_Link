@@ -27,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dynamicdevelopers.reslink.data.ResLinkApi
 import com.dynamicdevelopers.reslink.data.SessionStore
+import com.dynamicdevelopers.reslink.ui.auth.ForgotPasswordScreen
 import com.dynamicdevelopers.reslink.ui.auth.LoginScreen
 import com.dynamicdevelopers.reslink.ui.auth.StaffRegisterScreen
 import com.dynamicdevelopers.reslink.ui.auth.StudentRegisterScreen
@@ -63,8 +64,12 @@ fun ResLinkNav(api: ResLinkApi, session: SessionStore) {
                 api, session,
                 onLoggedIn = { role -> nav.navigate(roleHome(role)) { popUpTo("login") { inclusive = true } } },
                 onStudentSignUp = { nav.navigate("registerStudent") },
-                onStaffSignUp = { nav.navigate("registerStaff") }
+                onStaffSignUp = { nav.navigate("registerStaff") },
+                onForgotPassword = { nav.navigate("forgotPassword") }
             )
+        }
+        composable("forgotPassword") {
+            ForgotPasswordScreen(api, onBack = { nav.popBackStack() })
         }
         composable("registerStudent") {
             StudentRegisterScreen(api, session, onDone = { role -> nav.navigate(roleHome(role)) { popUpTo("login") { inclusive = true } } }, onBack = { nav.popBackStack() })

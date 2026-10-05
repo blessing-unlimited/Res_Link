@@ -24,6 +24,18 @@ public static class DbSeeder
         // Seed only on an empty database so a live host keeps lecturer-created accounts (Microsoft, 2025c).
         if (await db.Users.AnyAsync())
         {
+            // Sign-up needs at least one residence to choose from.
+            if (!await db.Residences.AnyAsync())
+            {
+                db.Residences.Add(new Residence
+                {
+                    Id = ResidenceId,
+                    Name = "Campus Flow Residence",
+                    Campus = "Main Campus",
+                    Address = "14 Residence Walk, University Avenue"
+                });
+                await db.SaveChangesAsync();
+            }
             return;
         }
 

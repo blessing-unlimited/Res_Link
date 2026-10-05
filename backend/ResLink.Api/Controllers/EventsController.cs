@@ -39,7 +39,9 @@ public class EventsController(
             Description = request.Description.Trim(),
             Location = request.Location.Trim(),
             Category = string.IsNullOrWhiteSpace(request.Category) ? "Social" : request.Category.Trim(),
-            StartsAt = request.StartsAt,
+            StartsAt = request.StartsAt.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(request.StartsAt, DateTimeKind.Utc)
+                : request.StartsAt.ToUniversalTime(),
             CheckInCode = $"EVT-{Random.Shared.Next(1000, 9999)}"
         };
         db.Events.Add(item);

@@ -200,3 +200,5 @@ public record UpdatePushTokenRequest(string Token);
 public record ForgotPasswordRequest(string Email);
 
 public record ResetPasswordRequest(string Token, string NewPassword);
+
+public record ResetLinkDto(string Link, DateTime ExpiresAt);

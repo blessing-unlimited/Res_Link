@@ -1,7 +1,7 @@
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ResLink.Api.Auth;
@@ -94,8 +94,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         Database = databaseName,
         Username = username,
         Password = password,
-        SslMode = Npgsql.SslMode.Require,
-        TrustServerCertificate = true
+        SslMode = Npgsql.SslMode.Require
     }.ConnectionString;
 
     options.UseNpgsql(connectionString);
@@ -107,9 +106,22 @@ builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PointsService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<PasswordResetService>();
 
 // Issuer, audience and signing-key checks match Microsoft's JWT bearer guidance (Microsoft, 2025b; OWASP, 2023).
 var jwt = builder.Configuration.GetSection("Jwt");
+// An empty key makes every request fail, including sign-up, so a host must set Jwt__Key.
+var generatedDevJwtKey = false;
+if (string.IsNullOrWhiteSpace(jwt["Key"]))
+{
+    if (!builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("Jwt:Key is not set. Add a Jwt__Key environment variable of at least 32 characters.");
+    }
+
+    builder.Configuration["Jwt:Key"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+    generatedDevJwtKey = true;
+}
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -139,6 +151,11 @@ builder.Services.AddSingleton<CloudinaryStorageService>();
 builder.Services.AddSingleton<FirebasePushService>();
 
 var app = builder.Build();
+
+if (generatedDevJwtKey)
+{
+    app.Logger.LogWarning("Jwt:Key is not set, so a temporary key was generated. Sign-ins reset when the API restarts; set it with dotnet user-secrets to keep them.");
+}
 
 using (var scope = app.Services.CreateScope())
 {
@@ -186,6 +203,8 @@ app.UseCors("Client");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// Reset links open the browser app, which shows the new-password form.
+app.MapFallbackToFile("/reset-password", "index.html");
 
 app.Run();
 

@@ -3,9 +3,24 @@ services:
     name: reslink
     runtime: docker
     plan: free
+    region: frankfurt
     healthCheckPath: /
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: RESLINK_DATA_DIR
         value: /tmp/reslink
+      - key: Jwt__Key
+        generateValue: true
+      - key: Staff__AccessCode
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: Cloudinary__CloudName
+        sync: false
+      - key: Cloudinary__ApiKey
+        sync: false
+      - key: Cloudinary__ApiSecret
+        sync: false
+      - key: Firebase__ServiceAccountJson
+        sync: false

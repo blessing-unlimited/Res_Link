@@ -174,38 +174,46 @@ The API in this repository already signs users in, checks roles, and stores demo
 
 Do not put passwords, API keys, or card numbers in Git. Set them in the Render dashboard under **Environment** (Render, 2025).
 
+### Hosting on Render
+
+The live app is a Render web service built from this repository (`blessing-unlimited/Res_Link`). `render.yaml` describes it: Docker, the free plan, and the Frankfurt region, the same as the Neon database (Render, 2025).
+
+1. On Render, choose **New > Blueprint** and connect `blessing-unlimited/Res_Link`. A repository owner may have to approve the Render GitHub app first.
+2. Render reads `render.yaml`, creates the `reslink` service, and generates `Jwt__Key` itself.
+3. When it asks for the other values, set `Staff__AccessCode`. The Cloudinary and Firebase values can stay empty until those accounts exist. Add `DATABASE_URL` only when the live data should move to Neon (step 1 below).
+4. Each push to `main` redeploys the service. Password reset links use the service's own address automatically.
+
 ### 1. Keep data after the host restarts
 
-The live service writes SQLite under `/tmp/reslink`. Render’s free disk is wiped when the service sleeps, so the app loads the demo accounts again. A residence needs a hosted PostgreSQL database (Microsoft, 2025c; Render, 2025).
+Without a database URL, the service writes SQLite under `/tmp/reslink`. Render’s free disk is wiped when the service sleeps, so the app loads the demo accounts again. The live data is kept in a Neon PostgreSQL database instead, because Neon’s free plan does not expire the way Render’s free PostgreSQL does (Neon, 2026; Render, 2026).
 
-1. In the Render dashboard, create a **PostgreSQL** instance in the same region as the `reslink` web service.
-2. Copy the **Internal Database URL**.
-3. On the `reslink` web service, add an environment variable named `DATABASE_URL` and paste that URL.
-4. In `backend/ResLink.Api/ResLink.Api.csproj`, add the package `Npgsql.EntityFrameworkCore.PostgreSQL`.
-5. In `Program.cs`, when `DATABASE_URL` is set, call `options.UseNpgsql(connectionString)` instead of `UseSqlite`.
-6. Replace `EnsureCreated` with EF Core migrations: `dotnet ef migrations add InitialPostgres` and `dotnet ef database update`.
-7. Redeploy the web service and sign in with `student@reslink.app`. Create a post, restart the service, and confirm the post is still there.
+The API is already set up for this. When `DATABASE_URL` is set it uses PostgreSQL and applies the migrations in `backend/ResLink.Api/Migrations`; otherwise it uses SQLite, so local runs and tests are unchanged (Microsoft, 2025c).
+
+1. In the Neon project (region: Frankfurt, the same as the Render service), open **Connect**, turn **Connection pooling** off, and copy the connection string. It starts with `postgresql://`.
+2. On the Render web service, add an environment variable named `DATABASE_URL` and paste that string. Do not paste it into Git or the group chat.
+3. Redeploy. On first start the API creates the tables and loads the demo accounts, but only into an empty database.
+4. Sign in with `student@reslink.app`. Create a post, restart the service, and confirm the post is still there.
+5. After changing an entity class, add a migration from `backend/ResLink.Api` with a placeholder URL so it is generated for PostgreSQL: `DATABASE_URL="postgresql://design:design@localhost/reslink" dotnet ef migrations add DescribeTheChange`.
 
 ### 2. Move secrets out of the repository
 
-`appsettings.json` currently holds the JWT signing key and the staff access code so the demo can run. A real venue must rotate those values and keep them only on the server (OWASP, 2023).
+`appsettings.json` keeps the JWT signing key and the staff access code empty. Local runs generate a temporary key and use the demo staff code from `appsettings.Development.json`. The hosted app refuses to start without a JWT key, so the values live only on the server (OWASP, 2023).
 
-1. Generate a new random string of at least 32 characters for the JWT key.
-2. On Render, set `Jwt__Key`, `Jwt__Issuer` (`ResLink.Api`), `Jwt__Audience` (`ResLink.Android`), and `Staff__AccessCode` to a new code that is not `RESLINK-STAFF-2026`.
-3. Remove the real values from `appsettings.json` before the next public commit. Leave empty placeholders.
-4. Redeploy. Old demo tokens will stop working, which is expected. Sign in again.
-5. Share the new staff code only with residence staff.
+1. Render generates `Jwt__Key` from `render.yaml`. To rotate it, choose **Generate** next to it under **Environment**.
+2. Before a real venue uses the app, change `Staff__AccessCode` on Render to a new code that is not `RESLINK-STAFF-2026`.
+3. Redeploy. Old tokens stop working after a key change, which is expected. Sign in again.
+4. Share the staff code only with residence staff.
 
 ### 3. Store maintenance photos
 
 Students can type a photo URL. A real report needs a picture taken on the phone and stored in cloud storage, not on the Render disk.
 
-1. Create a storage bucket (Cloudflare R2, Azure Blob, or Amazon S3).
-2. Create an access key that can upload and read objects in that bucket only.
-3. Add `Storage__Account`, `Storage__Key`, and `Storage__Bucket` on Render.
-4. Add an endpoint `POST /api/maintenance/photos` that accepts one image, checks the file is a JPEG or PNG under 5 MB, uploads it, and returns the URL.
-5. Point the maintenance form at that endpoint instead of the free-text photo URL field.
-6. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
+The API already has a Cloudinary upload service and `POST /api/maintenance/photos`, which accepts one JPEG or PNG under 5 MB and returns its URL.
+
+1. Create a free Cloudinary account and copy the cloud name, API key, and API secret from the dashboard.
+2. Add `Cloudinary__CloudName`, `Cloudinary__ApiKey`, and `Cloudinary__ApiSecret` on Render.
+3. Point the maintenance forms at the photo endpoint instead of the free-text photo URL field.
+4. Test with a photo of a tap, then open the ticket as the maintenance user and confirm the image loads.
 
 ### 4. Tell staff when something happens
 
@@ -219,13 +227,13 @@ The app already writes an in-app notification row. A residence also needs a push
 
 ### 5. Email for password reset
 
-There is no “forgot password” flow. Staff and students at a real venue will lock themselves out (OWASP, 2023).
+“Forgot password?” is on the web and Android sign-in screens. `POST /api/auth/forgot-password` creates a one-time link that expires in 30 minutes and always returns the same message, and `/reset-password?token=…` opens the page that sets the new password (OWASP, 2023).
 
-1. Create an account with an email provider (for example SendGrid or Amazon SES) and verify the sender address `noreply@reslink.app` or the residence domain.
-2. Store `Email__ApiKey` and `Email__From` on Render.
-3. Add `POST /api/auth/forgot-password`. It emails a one-time link that expires in 30 minutes. Always return the same message, whether or not the email exists.
-4. Add `POST /api/auth/reset-password` to set the new password hash and invalidate the link.
-5. Send a test reset to your own inbox and confirm the old password no longer works.
+A no-reply sender needs a domain, so email is postponed until a residence buys ResLink. Until then:
+
+1. With no `Email__ApiKey` set, the API skips sending and logs a warning instead of failing.
+2. An admin opens **Admin Panel → Residents**, presses **Create reset link** for the resident, and sends them the copied link (for example on WhatsApp).
+3. When a residence signs up, verify its domain with the email provider (for example SendGrid), then set `Email__ApiKey` and `Email__From` (such as `noreply@<residence domain>`) on Render. The same flow then emails the link.
 
 ### 6. Reach security outside the app
 
@@ -268,7 +276,7 @@ Events show a demo code. A real check-in needs a code that changes per event and
 
 ### 10. Backups and a custom domain
 
-1. On the PostgreSQL instance, turn on daily backups and keep at least seven days (Render, 2025).
+1. In the Neon project, check how far back the plan can restore, and set up daily snapshots kept for at least seven days if the plan allows it (Neon, 2026).
 2. Add the residence domain in Render and set the DNS records they provide.
 3. Confirm `https://` loads the app and that sign-in still works.
 4. Write the restore steps in this file: which backup date, which command, and who to call.
@@ -310,11 +318,15 @@ Microsoft (2025d) *Get started with Swashbuckle and ASP.NET Core*. Available at:
 
 Microsoft (2025e) *Role-based authorization in ASP.NET Core*. Available at: https://learn.microsoft.com/aspnet/core/security/authorization/roles?view=aspnetcore-9.0 (Accessed: 25 September 2026).
 
+Neon (2026) *Neon documentation*. Available at: https://neon.com/docs (Accessed: 2 October 2026).
+
 OpenAPI Initiative (2024) *OpenAPI Specification*. Available at: https://spec.openapis.org/oas/latest.html (Accessed: 25 September 2026).
 
 OWASP (2023) *Authentication cheat sheet*. Available at: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html (Accessed: 25 September 2026).
 
 Render (2025) *Docker on Render*. Available at: https://render.com/docs/docker (Accessed: 25 September 2026).
+
+Render (2026) *Deploy for free*. Available at: https://render.com/docs/free (Accessed: 2 October 2026).
 
 SQLite Consortium (2025) *About SQLite*. Available at: https://www.sqlite.org/about.html (Accessed: 25 September 2026).
 

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dynamicdevelopers.reslink.R
+import com.dynamicdevelopers.reslink.ResLinkApp
 import com.dynamicdevelopers.reslink.data.ResidenceDto
 import com.dynamicdevelopers.reslink.data.ResLinkApi
 import com.dynamicdevelopers.reslink.data.StaffRegisterRequest
@@ -67,7 +68,8 @@ fun LoginScreen(
     session: SessionStore,
     onLoggedIn: (String) -> Unit,
     onStudentSignUp: () -> Unit,
-    onStaffSignUp: () -> Unit
+    onStaffSignUp: () -> Unit,
+    onForgotPassword: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -96,13 +98,7 @@ fun LoginScreen(
                         val auth = api.login(LoginRequest(email.trim(), password))
                         session.save(auth)
                         successRole = auth.role
-
-                        com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val app = (context.applicationContext as? com.dynamicdevelopers.reslink.ResLinkApp)
-                                app?.uploadPushToken(task.result)
-                            }
-                        }
+                        (context.applicationContext as? ResLinkApp)?.syncPushToken()
                     } catch (ex: Exception) {
                         error = userMessage(ex)
                     } finally {
@@ -115,7 +111,8 @@ fun LoginScreen(
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
+        TextButton(onClick = onForgotPassword) { Text("Forgot password?", color = Forest) }
+        Spacer(Modifier.height(8.dp))
         TextButton(onClick = onStudentSignUp) { Text("Create a student account", color = Forest) }
         TextButton(onClick = onStaffSignUp) { Text("Staff sign-up (access code required)", color = Ink) }
         Text("Demo: student@reslink.app / Student123!", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
@@ -144,7 +141,11 @@ fun StudentRegisterScreen(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        residences = runCatching { api.residences() }.getOrDefault(emptyList())
+        residences = runCatching { api.residences() }.getOrElse {
+            error = "Residences could not be loaded. Check your connection, then go back and try again."
+            emptyList()
+        }
+        if (residences.isEmpty() && error == null) error = "No residences are set up yet. Ask the residence admin to add one."
         selected = residences.firstOrNull()
     }
 
@@ -221,15 +222,7 @@ fun StudentRegisterScreen(
                         )
                     )
                     session.save(auth)
-
-                    com.google.firebase.messaging.FirebaseMessaging.getInstance()
-                        .token.addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val app = context.applicationContext as? com.dynamicdevelopers.reslink.ResLinkApp
-                                app?.uploadPushToken(task.result)
-                            }
-                        }
-
+                    (context.applicationContext as? ResLinkApp)?.syncPushToken()
                     onDone(auth.role)
                 } catch (ex: Exception) {
                     error = userMessage(ex)
@@ -263,7 +256,11 @@ fun StaffRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (String)
 
 
     LaunchedEffect(Unit) {
-        residences = runCatching { api.residences() }.getOrDefault(emptyList())
+        residences = runCatching { api.residences() }.getOrElse {
+            error = "Residences could not be loaded. Check your connection, then go back and try again."
+            emptyList()
+        }
+        if (residences.isEmpty() && error == null) error = "No residences are set up yet. Ask the residence admin to add one."
         selected = residences.firstOrNull()
     }
 
@@ -329,14 +326,7 @@ fun StaffRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (String)
                         StaffRegisterRequest(fullName, email, password, staffId, role, accessCode, residence.id)
                     )
                     session.save(auth)
-
-                    com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val app = (context.applicationContext as? com.dynamicdevelopers.reslink.ResLinkApp)
-                            app?.uploadPushToken(task.result)
-                        }
-                    }
-
+                    (context.applicationContext as? ResLinkApp)?.syncPushToken()
                     onDone(auth.role)
                 } catch (ex: Exception) {
                     error = userMessage(ex)
@@ -346,6 +336,45 @@ fun StaffRegisterScreen(api: ResLinkApi, session: SessionStore, onDone: (String)
             }
         }
         Text("Demo staff code: RESLINK-STAFF-2026", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+@Composable
+fun ForgotPasswordScreen(api: ResLinkApi, onBack: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
+        BrandLockup()
+        Text("Reset your password", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
+        Text(
+            "Enter your account email. If email is not set up yet, ask the residence admin for a reset link.",
+            color = Muted,
+            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+        )
+        ResCard {
+            ResField(email, { email = it }, "Email", keyboardType = androidx.compose.ui.text.input.KeyboardType.Email)
+            ErrorText(error)
+            message?.let { Text(it, color = Forest, modifier = Modifier.padding(top = 8.dp)) }
+            Spacer(Modifier.height(16.dp))
+            ResButton("Send reset link", loading, enabled = email.isNotBlank()) {
+                scope.launch {
+                    loading = true
+                    error = null
+                    try {
+                        message = api.forgotPassword(com.dynamicdevelopers.reslink.data.ForgotPasswordRequest(email.trim())).message
+                    } catch (ex: Exception) {
+                        error = userMessage(ex)
+                    } finally {
+                        loading = false
+                    }
+                }
+            }
+        }
+        TextButton(onClick = onBack, modifier = Modifier.padding(top = 8.dp)) { Text("Back to sign in", color = Ink) }
     }
 }
 

@@ -7,9 +7,6 @@ using ResLink.Api.Contracts;
 using ResLink.Api.Data;
 using ResLink.Api.Domain;
 using ResLink.Api.Services;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace ResLink.Api.Controllers;
 
@@ -20,7 +17,8 @@ public class AuthController(
     JwtTokenService tokens,
     IConfiguration configuration,
     CurrentUser currentUser,
-    EmailService emailService) : ControllerBase
+    EmailService emailService,
+    PasswordResetService passwordResets) : ControllerBase
 {
     // Identity PasswordHasher stores a salted hash rather than the raw password (Microsoft, 2024; OWASP, 2023).
     private readonly PasswordHasher<AppUser> _hasher = new();
@@ -76,7 +74,8 @@ public class AuthController(
     public async Task<ActionResult<AuthResponse>> RegisterStaff(StaffRegisterRequest request)
     {
         var expectedCode = configuration["Staff:AccessCode"];
-        if (!string.Equals(request.AccessCode, expectedCode, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(expectedCode)
+            || !string.Equals(request.AccessCode, expectedCode, StringComparison.Ordinal))
         {
             return Unauthorized("Invalid staff access code.");
         }
@@ -191,30 +190,7 @@ public class AuthController(
             return Ok(new { message = "If an account exists for that email, a reset link has been sent." });
         }
 
-        var rawToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) +
-                       "." +
-                       Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-
-        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
-
-        var existingTokens = db.PasswordResetTokens.Where(t => t.UserId == user.Id && t.UsedAt == null && t.ExpiresAt > DateTime.UtcNow);
-
-        db.PasswordResetTokens.RemoveRange(existingTokens);
-
-        db.PasswordResetTokens.Add(new PasswordResetToken
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = tokenHash,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
-        });
-
-        await db.SaveChangesAsync();
-
-        var baseUrl = configuration["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
-        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
-        var resetLink = $"{baseUrl}/reset-password?token={encodedToken}";
-
+        var (resetLink, _) = await passwordResets.CreateLinkAsync(user, Request);
         await emailService.SendPasswordResetAsync(user.Email, resetLink);
 
         return Ok(new { message = "If an account exists for that email, a reset link has been sent." });
@@ -233,17 +209,7 @@ public class AuthController(
             return BadRequest("Password must be at least 8 characters long.");
         }
 
-        var tokenBytes = WebEncoders.Base64UrlDecode(request.Token);
-        var rawToken = Encoding.UTF8.GetString(tokenBytes);
-        var tokenHash = Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
-
-        var resetToken = await db.PasswordResetTokens
-            .Include(t => t.User)
-            .FirstOrDefaultAsync(t =>
-                t.TokenHash == tokenHash &&
-                t.UsedAt == null &&
-                t.ExpiresAt > DateTime.UtcNow);
+        var resetToken = await passwordResets.FindValidTokenAsync(request.Token);
 
         if (resetToken is null || resetToken.User is null)
         {
