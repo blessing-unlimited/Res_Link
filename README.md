@@ -380,3 +380,15 @@ SQLite Consortium (2025) *About SQLite*. Available at: https://www.sqlite.org/ab
 Square (2024) *Retrofit*. Available at: https://square.github.io/retrofit/ (Accessed: 25 September 2026).
 
 Unsplash (2026) *License*. Available at: https://unsplash.com/license (Accessed: 25 September 2026).
+
+Firebase (2026a) Firebase admin .NET SDK release notes, Firebase.com. Available at: https://firebase.google.com/support/release-notes/admin/dotnet (Accessed: October 3, 2026).
+
+Firebase (2026b) FirebaseAdmin.Messaging.FirebaseMessaging, Firebase.com. Available at: https://firebase.google.com/docs/reference/admin/dotnet/class/firebase-admin/messaging/firebase-messaging (Accessed: October 3, 2026).
+
+Firebase (2026c) Send a message using FCM HTTP v1 API, Firebase.com. Available at: https://firebase.google.com/docs/cloud-messaging/send/v1-api (Accessed: October 3, 2026).
+
+Firebase (2026d) Send a message using Firebase Admin SDK, Firebase.com. Available at: https://firebase.google.com/docs/cloud-messaging/send/admin-sdk (Accessed: October 3, 2026).
+
+Maze, C. (2024) Different ways to validate an uploaded file in Asp.net core, Code Maze. Available at: https://code-maze.com/aspnetcore-validate-uploaded-file/ (Accessed: October 5, 2026).
+
+
